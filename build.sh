@@ -8,7 +8,7 @@
 # Requirements: bash, curl, tar, unzip, zip, cpio, make, python3
 #
 # Environment overrides:
-#   KERNEL_NAME   zip/kernel name (default: PoWeR-Kernel-begonia)
+#   KERNEL_NAME   zip/kernel name (default: MeTh-Kernel-begonia)
 #   CLANG_VER     android clang release, e.g. clang-r383902 (default)
 #   GCC_VER       gcc version tag, e.g. android-11.0.0_r1 (default)
 #   TC_ROOT       directory where toolchains are stored (default: $HOME/toolchains)
@@ -29,7 +29,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-KERNEL_NAME="${KERNEL_NAME:-PoWeR-Kernel-begonia}"
+KERNEL_NAME="${KERNEL_NAME:-MeTh-Kernel-begonia}"
 CLANG_VER="${CLANG_VER:-clang-r383902}"
 GCC_VER="${GCC_VER:-android-11.0.0_r1}"
 TC_ROOT="${TC_ROOT:-$HOME/toolchains}"
