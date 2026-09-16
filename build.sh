@@ -178,8 +178,36 @@ package_zip() {
     cp -r "$AK3_DIR/." "$stage/"
     cp "$image" "$stage/Image.gz-dtb"
 
-    local commit_hash
+    local commit_hash commit_date commit_subject kver toolchain_ver
     commit_hash="$(git rev-parse --short HEAD 2>/dev/null || echo "custom")"
+    commit_date="$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M' 2>/dev/null || date +'%Y-%m-%d %H:%M')"
+    commit_subject="$(git log -1 --format=%s 2>/dev/null || echo "Release build")"
+    kver="4.14.$(grep -m1 '^SUBLEVEL =' "$ROOT_DIR/Makefile" | awk '{print $3}')"
+    toolchain_ver="Clang 11.0.1 + GCC 9.3"
+
+    # Generate dynamic changelog ui_print statements for TWRP
+    local changelog_ui=""
+    while IFS= read -r line; do
+        [[ -n "$line" ]] || continue
+        local escaped_line
+        escaped_line="$(echo "$line" | sed 's/"/\\"/g')"
+        changelog_ui+="ui_print \"   * ${escaped_line}\";\n"
+    done < <(git log -n 8 --pretty=format:"[%h] %s" 2>/dev/null || echo "[custom] Initial Pox Kernel release")
+
+    # Generate standalone CHANGELOG.txt for the flashable zip
+    {
+        echo "========================================================"
+        echo " POX KERNEL - Redmi Note 8 Pro (begonia)"
+        echo " Maintainer: TXO R"
+        echo " Motto: We aim for stability, not for anything else."
+        echo " Linux: v$kver | Build: $commit_hash | Date: $commit_date"
+        echo " Toolchain: $toolchain_ver"
+        echo " Defconfig: $DEFCONFIG (APatch ready)"
+        echo "========================================================"
+        echo ""
+        echo "--- Changelog (Recent Commits) ---"
+        git log -n 15 --pretty=format:"* %h (%cd) - %s%n  Author: %an%n%b" --date=short 2>/dev/null || git log -n 5 2>/dev/null || true
+    } > "$stage/CHANGELOG.txt"
 
     cat << AK_EOF > "$stage/anykernel.sh"
 # AnyKernel3 Ramdisk Mod Script
@@ -214,7 +242,7 @@ PATCH_VBMETA_FLAG=auto;
 # import patching functions/variables - see for reference
 . tools/ak3-core.sh;
 
-## TWRP / Recovery UI Banner
+## TWRP / Recovery UI Banner & Version Details
 ui_print " ";
 ui_print " ============================================";
 ui_print "                 POX KERNEL                  ";
@@ -223,13 +251,23 @@ ui_print "  * Device     : Redmi Note 8 Pro (begonia)  ";
 ui_print "  * Maintainer : TXO R                       ";
 ui_print "  * Motto      : We aim for stability,       ";
 ui_print "                 not for anything else.      ";
-ui_print "  * Commit     : $commit_hash";
+ui_print "  * Linux Ver  : $kver                       ";
+ui_print "  * Build Hash : $commit_hash                ";
+ui_print "  * Build Date : $commit_date                ";
+ui_print "  * Toolchain  : $toolchain_ver              ";
 ui_print "  * Features   : APatch / KernelPatch ready  ";
+ui_print " --------------------------------------------";
+ui_print "  LATEST COMMIT:";
+ui_print "  $commit_subject";
+ui_print " --------------------------------------------";
+ui_print "  CHANGELOG (Recent Changes):";
+$(printf '%b' "$changelog_ui")
 ui_print " ============================================";
 ui_print " ";
 
 ## AnyKernel file attributes
 ui_print " [*] [1/4] Configuring ramdisk permissions & ownership...";
+ui_print "     - Target partition: /dev/block/by-name/boot (A-only)";
 chmod -R 750 \$RAMDISK/*;
 chown -R root:root \$RAMDISK/*;
 
@@ -238,6 +276,10 @@ ui_print " [*] [2/4] Dumping and unpacking current boot image...";
 dump_boot;
 
 ui_print " [*] [3/4] Repacking boot image with Pox kernel (Image.gz-dtb)...";
+ui_print "     - Linux kernel: v$kver (MT6785 / Helio G90T)";
+ui_print "     - Low-battery call reboot fix: active";
+ui_print "     - Low-battery lag/throttling fix: active";
+ui_print "     - APatch / KernelPatch KALLSYMS: enabled";
 write_boot;
 
 ui_print " [*] [4/4] Cleaning up temporary installer files...";
