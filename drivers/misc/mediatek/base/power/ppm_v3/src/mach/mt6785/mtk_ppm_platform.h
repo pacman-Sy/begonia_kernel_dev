@@ -61,10 +61,10 @@ extern "C" {
 
 /* other policy settings */
 #define PTPOD_FREQ_IDX		(7)
-#define PWRTHRO_BAT_PER_MW	(600)
-#define PWRTHRO_BAT_OC_MW	(600)
-#define PWRTHRO_LOW_BAT_LV1_MW	(600)
-#define PWRTHRO_LOW_BAT_LV2_MW	(600)
+#define PWRTHRO_BAT_PER_MW	(3000)
+#define PWRTHRO_BAT_OC_MW	(3000)
+#define PWRTHRO_LOW_BAT_LV1_MW	(3000)
+#define PWRTHRO_LOW_BAT_LV2_MW	(2500)
 
 #define DVFS_OPP_NUM		(16)
 #define get_cluster_ptpod_fix_freq_idx(id)	(mt_cpufreq_find_Vboot_idx(id))

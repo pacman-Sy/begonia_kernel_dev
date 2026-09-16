@@ -25,7 +25,7 @@
 /* Define for disable low battery protect feature,
  * default no define for enable low battery protect.
  */
-//#define DISABLE_LOW_BATTERY_PROTECT
+#define DISABLE_LOW_BATTERY_PROTECT
 
 /*Define for disable battery OC protect*/
 #define DISABLE_BATTERY_OC_PROTECT
@@ -37,7 +37,7 @@
 #define DISABLE_DLPT_FEATURE
 #endif /* defined(CONFIG_FPGA_EARLY_PORTING) || PT_DLPT_BRINGUP */
 
-//#define DISABLE_LOW_BATTERY_PROTECT
+#define DISABLE_LOW_BATTERY_PROTECT
 #define DISABLE_BATTERY_OC_PROTECT
 #define DISABLE_BATTERY_PERCENT_PROTECT
 #define DISABLE_DLPT_FEATURE
