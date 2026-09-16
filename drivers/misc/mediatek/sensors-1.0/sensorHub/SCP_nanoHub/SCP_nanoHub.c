@@ -486,7 +486,7 @@ static void SCP_sensorHub_write_wp_queue(union SCP_SENSOR_HUB_DATA *rsp)
 	wp_queue->ringbuffer[wp_queue->head++] = rsp->notify_rsp.currWp;
 	wp_queue->head &= wp_queue->bufsize - 1;
 	if (unlikely(wp_queue->head == wp_queue->tail))
-		pr_err("dropped currWp due to ringbuffer is full\n");
+		pr_err_ratelimited("dropped currWp due to ringbuffer is full\n");
 	spin_unlock(&wp_queue->buffer_lock);
 }
 static int SCP_sensorHub_fetch_next_wp(uint32_t *currWp)
@@ -2296,7 +2296,8 @@ static int sensorHub_probe(struct platform_device *pdev)
 	spin_lock_init(&obj->wp_queue.buffer_lock);
 	obj->wp_queue.head = 0;
 	obj->wp_queue.tail = 0;
-	obj->wp_queue.bufsize = 32;
+	/* Expanded from 32 to 256 to prevent ringbuffer overflow under high-frequency sensor events */
+	obj->wp_queue.bufsize = 256;
 	obj->wp_queue.ringbuffer =
 		vzalloc(obj->wp_queue.bufsize * sizeof(uint32_t));
 	if (!obj->wp_queue.ringbuffer) {

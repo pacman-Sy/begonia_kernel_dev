@@ -38,7 +38,8 @@
 #endif /* defined(CONFIG_FPGA_EARLY_PORTING) || PT_DLPT_BRINGUP */
 
 #define DISABLE_LOW_BATTERY_PROTECT
-#define DISABLE_BATTERY_OC_PROTECT
+/* Enable BATTERY_OC_PROTECT to prevent >5.5A spikes that collapse battery voltage into 2sec_reboot */
+//#define DISABLE_BATTERY_OC_PROTECT
 #define DISABLE_BATTERY_PERCENT_PROTECT
 #define DISABLE_DLPT_FEATURE
 
