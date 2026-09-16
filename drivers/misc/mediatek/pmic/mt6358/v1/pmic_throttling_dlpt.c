@@ -1130,9 +1130,16 @@ int dlpt_notify_handler(void *unused)
 				pr_info("[DLPT_POWER_OFF_EN] notify SOC=0 to power off, power_off_cnt=%d\n"
 					, power_off_cnt);
 
-				if (power_off_cnt >= 4)
-					kernel_restart(
-						"DLPT reboot system");
+				if (power_off_cnt >= 8) {
+					if (cur_ui_soc == 0) {
+						pr_info("[DLPT_POWER_OFF_EN] SOC is 0, power off system\n");
+						kernel_power_off();
+					} else {
+						pr_info("[DLPT_POWER_OFF_EN] SOC is %d > 0, suppress forced reboot\n",
+							cur_ui_soc);
+						power_off_cnt = 0;
+					}
+				}
 			} else
 				power_off_cnt = 0;
 		}

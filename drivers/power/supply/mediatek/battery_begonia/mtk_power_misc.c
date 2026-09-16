@@ -278,6 +278,7 @@ static int shutdown_event_handler(struct shutdown_controller *sdd)
 	int polling = 0;
 	static int ui_zero_time_flag;
 	static int down_to_low_bat;
+	static int low_bat_debounce_cnt;
 	int now_current = 0;
 	int current_ui_soc = battery_get_uisoc();
 	int current_soc = battery_get_soc();
@@ -377,29 +378,34 @@ static int shutdown_event_handler(struct shutdown_controller *sdd)
 			LOW_TEMP_DISABLE_LOW_BAT_SHUTDOWN);
 
 		if (sdd->avgvbat < BAT_VOLTAGE_LOW_BOUND) {
-			/* avg vbat less than 3.4v */
-			sdd->lowbatteryshutdown = true;
+			/* avg vbat less than low bound */
 			polling++;
 
 			if (down_to_low_bat == 0) {
-				if (IS_ENABLED(
-					LOW_TEMP_DISABLE_LOW_BAT_SHUTDOWN)) {
-					if (tmp >= LOW_TEMP_THRESHOLD) {
+				if (++low_bat_debounce_cnt >= 3) {
+					sdd->lowbatteryshutdown = true;
+					if (IS_ENABLED(
+						LOW_TEMP_DISABLE_LOW_BAT_SHUTDOWN)) {
+						if (tmp >= LOW_TEMP_THRESHOLD) {
+							down_to_low_bat = 1;
+							bm_err("normal tmp, battery voltage is low shutdown\n");
+							notify_fg_shutdown();
+						} else if (sdd->avgvbat <=
+							LOW_TMP_BAT_VOLTAGE_LOW_BOUND) {
+							down_to_low_bat = 1;
+							bm_err("cold tmp, battery voltage is low shutdown\n");
+							notify_fg_shutdown();
+						} else
+							bm_err("low temp disable low battery sd\n");
+					} else {
 						down_to_low_bat = 1;
-						bm_err("normal tmp, battery voltage is low shutdown\n");
+						bm_err("[%s]avg vbat is low to shutdown\n",
+							__func__);
 						notify_fg_shutdown();
-					} else if (sdd->avgvbat <=
-						LOW_TMP_BAT_VOLTAGE_LOW_BOUND) {
-						down_to_low_bat = 1;
-						bm_err("cold tmp, battery voltage is low shutdown\n");
-						notify_fg_shutdown();
-					} else
-						bm_err("low temp disable low battery sd\n");
+					}
 				} else {
-					down_to_low_bat = 1;
-					bm_err("[%s]avg vbat is low to shutdown\n",
-						__func__);
-					notify_fg_shutdown();
+					bm_err("[%s]debouncing low bat dip cnt:%d\n",
+						__func__, low_bat_debounce_cnt);
 				}
 			}
 
@@ -420,8 +426,9 @@ static int shutdown_event_handler(struct shutdown_controller *sdd)
 				}
 			}
 		} else {
-			/* greater than 3.4v, clear status */
+			/* greater than low bound, clear status */
 			down_to_low_bat = 0;
+			low_bat_debounce_cnt = 0;
 			ui_zero_time_flag = 0;
 			sdd->pre_time[LOW_BAT_VOLT].tv_sec = 0;
 			sdd->lowbatteryshutdown = false;

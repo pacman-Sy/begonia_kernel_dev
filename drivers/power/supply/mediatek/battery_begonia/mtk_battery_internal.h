@@ -46,12 +46,12 @@
 /* ============================================================ */
 /* power misc related */
 /* ============================================================ */
-#define BAT_VOLTAGE_LOW_BOUND 3400
-#define BAT_VOLTAGE_HIGH_BOUND 3450
-#define LOW_TMP_BAT_VOLTAGE_LOW_BOUND 3350
+#define BAT_VOLTAGE_LOW_BOUND 3150
+#define BAT_VOLTAGE_HIGH_BOUND 3250
+#define LOW_TMP_BAT_VOLTAGE_LOW_BOUND 3100
 #define SHUTDOWN_TIME 40
 #define AVGVBAT_ARRAY_SIZE 30
-#define INIT_VOLTAGE 3450
+#define INIT_VOLTAGE 3250
 #define BATTERY_SHUTDOWN_TEMPERATURE 70
 
 /* ============================================================ */

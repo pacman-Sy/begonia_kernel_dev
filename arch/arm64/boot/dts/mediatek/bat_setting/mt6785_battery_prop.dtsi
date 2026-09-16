@@ -31,11 +31,11 @@ bat_gm30: battery{
 /*	The resistance of PCB*/
 	CAR_TUNE_VALUE = <(100)>;
 /*	Tune value for current measurement*/
-	PMIC_MIN_VOL = <(33500)>;
+	PMIC_MIN_VOL = <(31500)>;
 /*	vboot voltage for gauge 0%*/
 	POWERON_SYSTEM_IBOOT = <(500)>;
 /*	power on system iboot*/
-	SHUTDOWN_GAUGE0_VOLTAGE = <(34000)>;
+	SHUTDOWN_GAUGE0_VOLTAGE = <(31500)>;
 /*	shutdown gauge 0% voltage*/
 	TEMPERATURE_T0 = <(50)>;
 /*	Battery temperature T0*/
@@ -57,13 +57,13 @@ bat_gm30: battery{
 /*	Pseudo 100% percentage at T3*/
 	g_FG_PSEUDO100_T4 = <(96)>;
 /*	Pseudo 100% percentage at T4*/
-	Q_MAX_SYS_VOLTAGE_BAT0 = <(3350)>;
+	Q_MAX_SYS_VOLTAGE_BAT0 = <(3200)>;
 /*	Pseudo1 for hide percentage*/
-	Q_MAX_SYS_VOLTAGE_BAT1 = <(3350)>;
+	Q_MAX_SYS_VOLTAGE_BAT1 = <(3200)>;
 /*	Pseudo1 for hide percentage*/
-	Q_MAX_SYS_VOLTAGE_BAT2 = <(3350)>;
+	Q_MAX_SYS_VOLTAGE_BAT2 = <(3200)>;
 /*	Pseudo1 for hide percentage*/
-	Q_MAX_SYS_VOLTAGE_BAT3 = <(3350)>;
+	Q_MAX_SYS_VOLTAGE_BAT3 = <(3200)>;
 /*	Pseudo1 for hide percentage*/
 	COM_FG_METER_RESISTANCE = <(100)>;
 /*	compensate The resistance of PCB*/
