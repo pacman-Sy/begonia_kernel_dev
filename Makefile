@@ -1998,3 +1998,17 @@ FORCE:
 # Declare the contents of the .PHONY variable as phony.  We keep that
 # information in a variable so we can use it in if_changed and friends.
 .PHONY: $(PHONY)
+
+# Convenience targets for portable build environment and AnyKernel3 flashable zip
+PHONY += zip flashable setup-deps clean-build distclean-build
+zip flashable:
+	@./build.sh
+
+setup-deps:
+	@./kerdevdep/setup_kerdevdep.sh
+
+clean-build:
+	@./build.sh clean
+
+distclean-build:
+	@./build.sh distclean

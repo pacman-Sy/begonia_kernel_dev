@@ -125,6 +125,18 @@ all.config
 kernel/configs/android-*.cfg
 
 out/
+build/
 *.zip
 Anykernel/
 clang*
+/kerdevdep/clang/
+/kerdevdep/gcc/
+/kerdevdep/usr/
+/kerdevdep/lib/
+/kerdevdep/etc/
+/kerdevdep/anykernel/
+/kerdevdep/bin/
+/kerdevdep/*.tar.gz
+/kerdevdep/*.zip
+scratch/
+
