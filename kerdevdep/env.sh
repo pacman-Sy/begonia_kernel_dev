@@ -12,5 +12,5 @@ export ARCH=arm64
 export CC=clang
 export CLANG_TRIPLE=aarch64-linux-gnu-
 export CROSS_COMPILE=aarch64-linux-android-
-export KBUILD_BUILD_USER="${KBUILD_BUILD_USER:-requiredroot}"
-export KBUILD_BUILD_HOST="${KBUILD_BUILD_HOST:-MeTh}"
+export KBUILD_BUILD_USER="${KBUILD_BUILD_USER:-TXO_R}"
+export KBUILD_BUILD_HOST="${KBUILD_BUILD_HOST:-PoxKernel}"

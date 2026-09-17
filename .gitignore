@@ -139,4 +139,4 @@ clang*
 /kerdevdep/*.tar.gz
 /kerdevdep/*.zip
 scratch/
-
+reboot_logs/
