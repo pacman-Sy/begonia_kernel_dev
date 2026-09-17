@@ -195,6 +195,12 @@ build_kernel() {
     else
         log "Reusing existing .config in $OUT_DIR"
         ./scripts/config --file "$OUT_DIR/.config" --set-str LOCALVERSION "$CUSTOM_LOCALVERSION"
+        # shellcheck disable=SC2086
+        make O="$OUT_DIR" ARCH="$ARCH" CC="$bcc" \
+            CLANG_TRIPLE="$CLANG_TRIPLE" CROSS_COMPILE="$CROSS_COMPILE" \
+            $EXTRA_FLAGS olddefconfig
+        # Ensure version headers are regenerated so UTS_RELEASE and compile.h always match
+        rm -f "$OUT_DIR/include/config/kernel.release" "$OUT_DIR/include/generated/utsrelease.h" "$OUT_DIR/include/generated/compile.h" "$OUT_DIR/init/version.o"
     fi
 
     if grep -q '^CONFIG_KALLSYMS_ALL=y$' "$OUT_DIR/.config"; then
