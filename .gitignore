@@ -140,3 +140,6 @@ clang*
 /kerdevdep/*.zip
 scratch/
 reboot_logs/
+reboot-logs/
+*reboot*.log
+*reboot_log*
