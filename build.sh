@@ -1,0 +1,201 @@
+#!/bin/bash
+# Build script for Begonia Kernel with KernelSU and SUSFS support
+# This script builds the kernel for Xiaomi Begonia (MTK MT6785/Serve)
+
+set -e
+
+# Configuration
+ARCH=${ARCH:-arm64}
+SUBARCH=${SUBARCH:-arm64}
+CROSS_COMPILE=${CROSS_COMPILE:-aarch64-linux-gnu-}
+DEFCONFIG=${DEFCONFIG:-begonia_user_defconfig}
+BUILD_DIR=${BUILD_DIR:-out}
+JOBS=${JOBS:-$(nproc)}
+MODULES_INSTALL_DIR=${MODULES_INSTALL_DIR:-modules}
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+log_info() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Check dependencies
+check_dependencies() {
+    log_info "Checking dependencies..."
+    
+    local deps=("make" "gcc" "${CROSS_COMPILE}gcc" "bison" "flex" "libssl-dev" "libelf-dev")
+    
+    for dep in "${deps[@]}"; do
+        if ! command -v "$dep" &> /dev/null; then
+            if [[ "$dep" == "${CROSS_COMPILE}*" ]]; then
+                log_error "Cross-compiler ${CROSS_COMPILE}gcc not found!"
+                log_info "Install with: sudo apt install gcc-aarch64-linux-gnu"
+                exit 1
+            fi
+            log_warn "Dependency $dep not found, attempting to continue..."
+        fi
+    done
+    
+    log_info "Dependencies checked."
+}
+
+# Prepare the build environment
+prepare() {
+    log_info "Preparing build environment..."
+    
+    # Initialize and update submodules
+    if [ -f .gitmodules ]; then
+        log_info "Initializing git submodules..."
+        git submodule update --init --recursive KernelSU
+    fi
+    
+    # Clean previous build
+    if [ -d "$BUILD_DIR" ]; then
+        log_info "Cleaning previous build..."
+        make O="$BUILD_DIR" mrproper
+    fi
+    
+    log_info "Build environment prepared."
+}
+
+# Configure the kernel
+configure() {
+    log_info "Configuring kernel with $DEFCONFIG..."
+    
+    # Copy defconfig
+    if [ -f "arch/arm64/configs/$DEFCONFIG" ]; then
+        cp "arch/arm64/configs/$DEFCONFIG" "$BUILD_DIR/.config"
+    else
+        log_error "Defconfig $DEFCONFIG not found!"
+        exit 1
+    fi
+    
+    # Enable KSU and SUSFS options if not already enabled
+    if ! grep -q "CONFIG_KSU=y" "$BUILD_DIR/.config"; then
+        log_info "Enabling CONFIG_KSU..."
+        echo "CONFIG_KSU=y" >> "$BUILD_DIR/.config"
+    fi
+    
+    if ! grep -q "CONFIG_KSU_MANUAL_HOOK=y" "$BUILD_DIR/.config"; then
+        log_info "Enabling CONFIG_KSU_MANUAL_HOOK..."
+        echo "CONFIG_KSU_MANUAL_HOOK=y" >> "$BUILD_DIR/.config"
+    fi
+    
+    if ! grep -q "CONFIG_KSU_SUSFS=y" "$BUILD_DIR/.config"; then
+        log_info "Enabling CONFIG_KSU_SUSFS..."
+        echo "CONFIG_KSU_SUSFS=y" >> "$BUILD_DIR/.config"
+    fi
+    
+    # Run olddefconfig to resolve any dependencies
+    log_info "Running olddefconfig..."
+    make O="$BUILD_DIR" ARCH=$ARCH SUBARCH=$SUBARCH CROSS_COMPILE=$CROSS_COMPILE olddefconfig
+    
+    log_info "Configuration complete."
+}
+
+# Build the kernel
+build() {
+    log_info "Building kernel with $JOBS jobs..."
+    log_info "ARCH=$ARCH SUBARCH=$SUBARCH CROSS_COMPILE=$CROSS_COMPILE"
+    
+    # Build the kernel
+    make O="$BUILD_DIR" \
+         ARCH=$ARCH \
+         SUBARCH=$SUBARCH \
+         CROSS_COMPILE=$CROSS_COMPILE \
+         -j$JOBS \
+         dtbs \
+         bzImage \
+         modules
+    
+    log_info "Build complete!"
+}
+
+# Package the output
+package() {
+    log_info "Packaging build artifacts..."
+    
+    local package_name="begonia-kernel-$(date +%Y%m%d-%H%M%S)"
+    local package_dir="build_output/$package_name"
+    
+    mkdir -p "$package_dir"
+    
+    # Copy kernel image
+    if [ -f "$BUILD_DIR/arch/arm64/boot/Image" ]; then
+        cp "$BUILD_DIR/arch/arm64/boot/Image" "$package_dir/"
+        log_info "Copied Image"
+    fi
+    
+    if [ -f "$BUILD_DIR/arch/arm64/boot/Image.gz" ]; then
+        cp "$BUILD_DIR/arch/arm64/boot/Image.gz" "$package_dir/"
+        log_info "Copied Image.gz"
+    fi
+    
+    # Copy DTBs
+    if [ -d "$BUILD_DIR/arch/arm64/boot/dts" ]; then
+        cp -r "$BUILD_DIR/arch/arm64/boot/dts" "$package_dir/"
+        log_info "Copied DTBs"
+    fi
+    
+    # Copy modules
+    if [ -d "$BUILD_DIR/modules" ]; then
+        cp -r "$BUILD_DIR/modules" "$package_dir/"
+        log_info "Copied modules"
+    fi
+    
+    # Create a manifest
+    cat > "$package_dir/MANIFEST.txt" << EOF
+Kernel Build Manifest
+=====================
+Date: $(date)
+Branch: $(git rev-parse --abbrev-ref HEAD)
+Commit: $(git rev-parse HEAD)
+KernelSU Commit: $(cd KernelSU && git rev-parse HEAD 2>/dev/null || echo "N/A")
+Config: $DEFCONFIG
+ARCH: $ARCH
+CROSS_COMPILE: $CROSS_COMPILE
+EOF
+    
+    log_info "Package created: $package_dir"
+    
+    # Create tarball
+    cd build_output
+    tar -czf "${package_name}.tar.gz" "$package_name"
+    cd ..
+    
+    log_info "Tarball created: build_output/${package_name}.tar.gz"
+}
+
+# Main function
+main() {
+    log_info "========================================="
+    log_info "Begonia Kernel Build Script"
+    log_info "With KernelSU and SUSFS Support"
+    log_info "========================================="
+    log_info ""
+    
+    check_dependencies
+    prepare
+    configure
+    build
+    package
+    
+    log_info "========================================="
+    log_info "Build completed successfully!"
+    log_info "========================================="
+}
+
+# Run main function
+main "$@"
