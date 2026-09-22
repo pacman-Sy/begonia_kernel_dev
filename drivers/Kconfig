@@ -227,7 +227,7 @@ source "drivers/mihw/Kconfig"
 
 source "drivers/kernelsu/Kconfig"
 
-# KSU SUSFS options (defined here since KernelSU Kconfig is in submodule)
+# KSU SUSFS options (added here as the upstream Kconfig doesn't include them)
 config KSU_SUSFS
 	bool "KernelSU SUSFS support"
 	depends on KSU
