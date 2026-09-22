@@ -62,7 +62,7 @@ jobs:
             lld \
             llvm-18 \
             gcc-aarch64-linux-gnu \
-            gcc-aarch64-linux-gnu-binutils \
+            binutils-aarch64-linux-gnu \
             bison \
             flex \
             libssl-dev \
