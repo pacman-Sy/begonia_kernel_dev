@@ -178,6 +178,39 @@ EOF
     log_info "Tarball created: build_output/${package_name}.tar.gz"
 }
 
+# Package a TWRP flashable AnyKernel3 zip
+package_anykernel() {
+    log_info "Packaging TWRP flashable AnyKernel3 zip..."
+
+    if [ ! -f "$BUILD_DIR/arch/arm64/boot/Image" ]; then
+        log_error "Kernel image not found at $BUILD_DIR/arch/arm64/boot/Image"
+        return 1
+    fi
+
+    if ! command -v zip &> /dev/null; then
+        log_error "zip not found! Install with: sudo apt install zip"
+        return 1
+    fi
+
+    local work_dir="AnyKernel3"
+    local zip_name="SuzakuKernel-begonia-$(date +%Y%m%d-%H%M%S)-AnyKernel3.zip"
+
+    rm -rf "$work_dir"
+    git clone --depth 1 https://github.com/osm0sis/AnyKernel3.git "$work_dir"
+    rm -rf "$work_dir/.git" "$work_dir/.github"
+
+    cp "$BUILD_DIR/arch/arm64/boot/Image" "$work_dir/Image"
+
+    sed -i 's|^kernel.string=.*|kernel.string=Suzaku Kernel V2 - Begonia (Redmi Note 8 Pro)|' "$work_dir/anykernel.sh"
+    sed -i 's|^device.names=.*|device.names="begonia"|' "$work_dir/anykernel.sh"
+
+    mkdir -p build_output
+    (cd "$work_dir" && zip -r9 "../build_output/$zip_name" . -x '.git/*' '.gitignore' '.github/*')
+    rm -rf "$work_dir"
+
+    log_info "AnyKernel3 zip created: build_output/$zip_name"
+}
+
 # Main function
 main() {
     log_info "========================================="
@@ -191,6 +224,7 @@ main() {
     configure
     build
     package
+    package_anykernel || log_warn "AnyKernel3 packaging failed (non-fatal)"
     
     log_info "========================================="
     log_info "Build completed successfully!"

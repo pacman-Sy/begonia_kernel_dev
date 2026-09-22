@@ -70,7 +70,8 @@ jobs:
             pahole \
             dwarves \
             pkg-config \
-            libncurses-dev
+            libncurses-dev \
+            zip
           # Use unversioned LLVM tool names (clang, ld.lld, llvm-ar, ...)
           echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
 
@@ -140,6 +141,29 @@ jobs:
           echo ""
           echo "=== Build Stats ==="
           du -sh "${{ env.BUILD_DIR }}" 2>/dev/null || true
+
+      - name: Package TWRP flashable AnyKernel3 zip
+        run: |
+          mkdir -p build_output
+          if [ ! -f "${{ env.BUILD_DIR }}/arch/arm64/boot/Image" ]; then
+            echo "::warning::No kernel image found, skipping AnyKernel3 packaging"
+            exit 0
+          fi
+          git clone --depth 1 https://github.com/osm0sis/AnyKernel3.git AnyKernel3
+          rm -rf AnyKernel3/.git AnyKernel3/.github
+          cp "${{ env.BUILD_DIR }}/arch/arm64/boot/Image" AnyKernel3/Image
+          sed -i 's|^kernel.string=.*|kernel.string=Suzaku Kernel V2 - Begonia (Redmi Note 8 Pro)|' AnyKernel3/anykernel.sh
+          sed -i 's|^device.names=.*|device.names="begonia"|' AnyKernel3/anykernel.sh
+          AK3_NAME="SuzakuKernel-begonia-$(date +%Y%m%d-%H%M%S)-AnyKernel3.zip"
+          (cd AnyKernel3 && zip -r9 "../build_output/$AK3_NAME" . -x '.git/*' '.gitignore' '.github/*')
+          echo "Created build_output/$AK3_NAME"
+
+      - name: Upload AnyKernel3 zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnyKernel3
+          path: build_output/*AnyKernel3.zip
+          retention-days: 30
 
       - name: Upload kernel image
         uses: actions/upload-artifact@v4
@@ -215,7 +239,9 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: build_output/*.tar.gz
+          files: |
+            build_output/*.tar.gz
+            build_output/*.zip
           draft: false
           prerelease: false
         env:
