@@ -29,7 +29,9 @@ env:
   ARCH: arm64
   SUBARCH: arm64
   DEFCONFIG: begonia_user_defconfig
-  CROSS_COMPILE: aarch64-linux-gnu-
+  CROSS_COMPILE:
+  CLANG_TRIPLE: aarch64-linux-gnu-
+  CC: clang
   BUILD_DIR: out
 
 jobs:
@@ -55,7 +57,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential \
-            gcc-aarch64-linux-gnu \
+            clang-18 \
             bison \
             flex \
             libssl-dev \
@@ -65,10 +67,11 @@ jobs:
             pkg-config \
             libncurses-dev
 
-      - name: Verify cross-compiler
+      - name: Verify Clang compiler
         run: |
-          ${CROSS_COMPILE}gcc --version
-          echo "Using CROSS_COMPILE=${CROSS_COMPILE}"
+          which clang
+          clang --version | head -1
+          echo "Using CLANG_TRIPLE=${CLANG_TRIPLE}"
 
       - name: Clean build directory
         run: |

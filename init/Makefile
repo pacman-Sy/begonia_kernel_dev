@@ -4,8 +4,6 @@
 #
 
 ccflags-y := -fno-function-sections -fno-data-sections
-ccflags-y += -mllvm -inline-threshold=15000
-ccflags-y += -mllvm -inlinehint-threshold=10000
 
 ifdef CONFIG_MTPROF
 ccflags-y += -Idrivers/misc/mediatek/mtprof/
@@ -15,13 +13,13 @@ ifdef CONFIG_MTK_RAM_CONSOLE
 ccflags-y += -Idrivers/misc/mediatek/include/
 endif
 
+# LLVM optimization flags are now controlled by CONFIG_INLINE_OPTIMIZATION guard
 ifdef CONFIG_INLINE_OPTIMIZATION
 ccflags-y += -mllvm -inline-threshold=15000
 ccflags-y += -mllvm -inlinehint-threshold=10000
 endif
 
-obj-y                          := main.o version.o mounts.o
-obj-y                          += noinitramfs.o
+obj-y                          := main.o version.o mounts.o noinitramfs.o
 obj-$(CONFIG_BLK_DEV_INITRD)   += initramfs.o
 obj-$(CONFIG_GENERIC_CALIBRATE_DELAY) += calibrate.o
 
