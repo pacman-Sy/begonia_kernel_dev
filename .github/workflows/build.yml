@@ -170,18 +170,16 @@ jobs:
           fi
           
           # Create manifest
-          cat > "build_output/$package_name/MANIFEST.txt" << MANIFEST
-Kernel Build Manifest
-=====================
-Date: $(date -u)
-Branch: $(git rev-parse --abbrev-ref HEAD)
-Commit: $(git rev-parse HEAD)
-KernelSU Commit: $(cd KernelSU && git rev-parse HEAD 2>/dev/null || echo "N/A")
-Config: ${{ env.DEFCONFIG }}
-ARCH: ${{ env.ARCH }}
-CROSS_COMPILE: ${{ env.CROSS_COMPILE }}
-GitHub Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-MANIFEST
+          echo "Kernel Build Manifest" > "build_output/$package_name/MANIFEST.txt"
+          echo "=====================" >> "build_output/$package_name/MANIFEST.txt"
+          echo "Date: $(date -u)" >> "build_output/$package_name/MANIFEST.txt"
+          echo "Branch: $(git rev-parse --abbrev-ref HEAD)" >> "build_output/$package_name/MANIFEST.txt"
+          echo "Commit: $(git rev-parse HEAD)" >> "build_output/$package_name/MANIFEST.txt"
+          echo "KernelSU Commit: $(cd KernelSU && git rev-parse HEAD 2>/dev/null || echo \"N/A\")" >> "build_output/$package_name/MANIFEST.txt"
+          echo "Config: ${{ env.DEFCONFIG }}" >> "build_output/$package_name/MANIFEST.txt"
+          echo "ARCH: ${{ env.ARCH }}" >> "build_output/$package_name/MANIFEST.txt"
+          echo "CROSS_COMPILE: ${{ env.CROSS_COMPILE }}" >> "build_output/$package_name/MANIFEST.txt"
+          echo "GitHub Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "build_output/$package_name/MANIFEST.txt"
           
           # Create tarball
           cd build_output
