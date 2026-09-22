@@ -32,6 +32,7 @@ env:
   CROSS_COMPILE:
   CLANG_TRIPLE: aarch64-linux-gnu-
   CC: clang
+  LLVM: 1
   BUILD_DIR: out
 
 jobs:
