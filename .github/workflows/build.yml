@@ -203,6 +203,15 @@ jobs:
           (cd AnyKernel3 && zip -r9 "../build_output/$AK3_NAME" . -x '.git/*' '.gitignore' '.github/*')
           echo "Created build_output/$AK3_NAME"
 
+      - name: Verify AnyKernel3 zip (payload + begonia config)
+        run: |
+          zipfile=$(ls build_output/*AnyKernel3.zip | head -n1)
+          if [ -z "$zipfile" ]; then
+            echo "::error::No AnyKernel3 zip to verify"
+            exit 1
+          fi
+          bash verify_ak3_zip.sh "$zipfile"
+
       - name: Upload AnyKernel3 zip
         uses: actions/upload-artifact@v4
         with:

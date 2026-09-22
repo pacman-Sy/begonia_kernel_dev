@@ -12,6 +12,7 @@ DEFCONFIG=${DEFCONFIG:-begonia_user_defconfig}
 BUILD_DIR=${BUILD_DIR:-out}
 JOBS=${JOBS:-$(nproc)}
 MODULES_INSTALL_DIR=${MODULES_INSTALL_DIR:-modules}
+ROOT_DIR="${ROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -255,6 +256,16 @@ AK3EOF
     rm -rf "$work_dir"
 
     log_info "AnyKernel3 zip created: build_output/$zip_name"
+
+    # Never hand out an unverified zip: check payload + begonia anykernel.sh config
+    if [ -f "$ROOT_DIR/verify_ak3_zip.sh" ]; then
+        if bash "$ROOT_DIR/verify_ak3_zip.sh" "build_output/$zip_name"; then
+            log_info "AnyKernel3 zip verified."
+        else
+            log_error "AnyKernel3 zip verification FAILED - do not flash this zip!"
+            return 1
+        fi
+    fi
 }
 
 # Main function
