@@ -29,7 +29,7 @@ env:
   ARCH: arm64
   SUBARCH: arm64
   DEFCONFIG: begonia_user_defconfig
-  CROSS_COMPILE:
+  CROSS_COMPILE: aarch64-linux-gnu-
   CLANG_TRIPLE: aarch64-linux-gnu-
   CC: clang
   LLVM: 1
@@ -59,6 +59,10 @@ jobs:
           sudo apt-get install -y \
             build-essential \
             clang-18 \
+            lld \
+            llvm-18 \
+            gcc-aarch64-linux-gnu \
+            gcc-aarch64-linux-gnu-binutils \
             bison \
             flex \
             libssl-dev \
@@ -67,12 +71,19 @@ jobs:
             dwarves \
             pkg-config \
             libncurses-dev
+          # Use unversioned LLVM tool names (clang, ld.lld, llvm-ar, ...)
+          echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
 
       - name: Verify Clang compiler
         run: |
           which clang
           clang --version | head -1
           echo "Using CLANG_TRIPLE=${CLANG_TRIPLE}"
+
+      - name: Verify cross-compiler
+        run: |
+          ${CROSS_COMPILE}gcc --version
+          echo "Using CROSS_COMPILE=${CROSS_COMPILE}"
 
       - name: Clean build directory
         run: |
