@@ -201,8 +201,51 @@ package_anykernel() {
 
     cp "$BUILD_DIR/arch/arm64/boot/Image" "$work_dir/Image"
 
-    sed -i 's|^kernel.string=.*|kernel.string=Suzaku Kernel V2 - Begonia (Redmi Note 8 Pro)|' "$work_dir/anykernel.sh"
-    sed -i 's|^device.names=.*|device.names="begonia,begoniain"|' "$work_dir/anykernel.sh"
+    # Replace template anykernel.sh with begonia config (based on requiredroot/powa_karnal)
+    cat > "$work_dir/anykernel.sh" <<'AK3EOF'
+# AnyKernel3 Ramdisk Mod Script
+# osm0sis @ xda-developers
+
+## AnyKernel setup
+properties() { '
+kernel.string=Suzaku Kernel V2 for Redmi Note 8 Pro (begonia)
+do.devicecheck=1
+do.modules=0
+do.systemless=0
+do.cleanup=1
+do.cleanuponabort=0
+device.name1=begonia
+device.name2=begonia_in
+device.name3=begoniain
+device.name4=
+supported.versions=
+supported.patchlevels=
+'; } # end properties
+
+## shell variables
+BLOCK=/dev/block/by-name/boot;
+# begonia (Redmi Note 8 Pro) is an A-only device: a single boot partition,
+# no A/B slot suffix. Keep IS_SLOT_DEVICE=0 (AnyKernel3 default for A-only).
+IS_SLOT_DEVICE=0;
+RAMDISK_COMPRESSION=auto;
+PATCH_VBMETA_FLAG=auto;
+
+## AnyKernel methods (DO NOT CHANGE)
+# import patching functions/variables - see for reference
+. tools/ak3-core.sh;
+
+## AnyKernel file attributes
+# set permissions/ownership for included ramdisk files
+chmod -R 750 $RAMDISK/*;
+chown -R root:root $RAMDISK/*;
+
+## AnyKernel install
+dump_boot;
+
+write_boot;
+
+## end install
+AK3EOF
 
     mkdir -p build_output
     (cd "$work_dir" && zip -r9 "../build_output/$zip_name" . -x '.git/*' '.gitignore' '.github/*')
