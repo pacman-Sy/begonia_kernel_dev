@@ -131,7 +131,7 @@ jobs:
                CROSS_COMPILE=${{ env.CROSS_COMPILE }} \
                -j$(nproc) \
                dtbs \
-               Image \
+               Image.gz-dtb \
                modules
 
       - name: Show build output
@@ -145,13 +145,15 @@ jobs:
       - name: Package TWRP flashable AnyKernel3 zip
         run: |
           mkdir -p build_output
-          if [ ! -f "${{ env.BUILD_DIR }}/arch/arm64/boot/Image" ]; then
-            echo "::warning::No kernel image found, skipping AnyKernel3 packaging"
+          if [ ! -f "${{ env.BUILD_DIR }}/arch/arm64/boot/Image.gz-dtb" ]; then
+            echo "::warning::No Image.gz-dtb found, skipping AnyKernel3 packaging"
             exit 0
           fi
           git clone --depth 1 https://github.com/osm0sis/AnyKernel3.git AnyKernel3
           rm -rf AnyKernel3/.git AnyKernel3/.github
-          cp "${{ env.BUILD_DIR }}/arch/arm64/boot/Image" AnyKernel3/Image
+          cp "${{ env.BUILD_DIR }}/arch/arm64/boot/Image.gz-dtb" AnyKernel3/Image.gz-dtb
+          # begonia's boot image ships Image.gz-dtb (kernel.gz + appended mediatek/mt6785 dtb).
+          # AK3 auto-detects the kernel file by name; Image.gz-dtb keeps the appended DTB.
           # Replace template anykernel.sh with begonia config (based on requiredroot/powa_karnal)
           cat > AnyKernel3/anykernel.sh <<'AK3EOF'
           # AnyKernel3 Ramdisk Mod Script
@@ -211,8 +213,8 @@ jobs:
       - name: Upload kernel image
         uses: actions/upload-artifact@v4
         with:
-          name: Image
-          path: ${{ env.BUILD_DIR }}/arch/arm64/boot/Image
+          name: Image.gz-dtb
+          path: ${{ env.BUILD_DIR }}/arch/arm64/boot/Image.gz-dtb
           retention-days: 30
 
       - name: Upload DTBs
@@ -236,9 +238,9 @@ jobs:
           package_name="begonia-kernel-$(date +%Y%m%d-%H%M%S)"
           mkdir -p "build_output/$package_name"
           
-          # Copy kernel image
-          if [ -f "${{ env.BUILD_DIR }}/arch/arm64/boot/Image" ]; then
-            cp "${{ env.BUILD_DIR }}/arch/arm64/boot/Image" "build_output/$package_name/"
+          # Copy kernel image (begonia boots Image.gz-dtb: kernel.gz + appended mt6785 dtb)
+          if [ -f "${{ env.BUILD_DIR }}/arch/arm64/boot/Image.gz-dtb" ]; then
+            cp "${{ env.BUILD_DIR }}/arch/arm64/boot/Image.gz-dtb" "build_output/$package_name/"
           fi
           
           # Copy DTBs

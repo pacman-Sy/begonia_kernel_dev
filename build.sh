@@ -111,13 +111,16 @@ build() {
     log_info "ARCH=$ARCH SUBARCH=$SUBARCH CROSS_COMPILE=$CROSS_COMPILE"
     
     # Build the kernel
+    # NOTE: begonia's stock boot image carries Image.gz-dtb, i.e. Image.gz with the
+    # mediatek/mt6785 dtb appended (CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE). bzImage is
+    # an x86 target and does not exist on arm64.
     make O="$BUILD_DIR" \
          ARCH=$ARCH \
          SUBARCH=$SUBARCH \
          CROSS_COMPILE=$CROSS_COMPILE \
          -j$JOBS \
          dtbs \
-         bzImage \
+         Image.gz-dtb \
          modules
     
     log_info "Build complete!"
@@ -132,10 +135,10 @@ package() {
     
     mkdir -p "$package_dir"
     
-    # Copy kernel image
-    if [ -f "$BUILD_DIR/arch/arm64/boot/Image" ]; then
-        cp "$BUILD_DIR/arch/arm64/boot/Image" "$package_dir/"
-        log_info "Copied Image"
+    # Copy kernel image (begonia boots Image.gz-dtb: kernel.gz + appended mt6785 dtb)
+    if [ -f "$BUILD_DIR/arch/arm64/boot/Image.gz-dtb" ]; then
+        cp "$BUILD_DIR/arch/arm64/boot/Image.gz-dtb" "$package_dir/"
+        log_info "Copied Image.gz-dtb"
     fi
     
     if [ -f "$BUILD_DIR/arch/arm64/boot/Image.gz" ]; then
@@ -182,8 +185,8 @@ EOF
 package_anykernel() {
     log_info "Packaging TWRP flashable AnyKernel3 zip..."
 
-    if [ ! -f "$BUILD_DIR/arch/arm64/boot/Image" ]; then
-        log_error "Kernel image not found at $BUILD_DIR/arch/arm64/boot/Image"
+    if [ ! -f "$BUILD_DIR/arch/arm64/boot/Image.gz-dtb" ]; then
+        log_error "Kernel image not found at $BUILD_DIR/arch/arm64/boot/Image.gz-dtb"
         return 1
     fi
 
@@ -199,7 +202,7 @@ package_anykernel() {
     git clone --depth 1 https://github.com/osm0sis/AnyKernel3.git "$work_dir"
     rm -rf "$work_dir/.git" "$work_dir/.github"
 
-    cp "$BUILD_DIR/arch/arm64/boot/Image" "$work_dir/Image"
+    cp "$BUILD_DIR/arch/arm64/boot/Image.gz-dtb" "$work_dir/Image.gz-dtb"
 
     # Replace template anykernel.sh with begonia config (based on requiredroot/powa_karnal)
     cat > "$work_dir/anykernel.sh" <<'AK3EOF'
