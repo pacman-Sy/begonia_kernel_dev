@@ -202,7 +202,7 @@ package_anykernel() {
     cp "$BUILD_DIR/arch/arm64/boot/Image" "$work_dir/Image"
 
     sed -i 's|^kernel.string=.*|kernel.string=Suzaku Kernel V2 - Begonia (Redmi Note 8 Pro)|' "$work_dir/anykernel.sh"
-    sed -i 's|^device.names=.*|device.names="begonia"|' "$work_dir/anykernel.sh"
+    sed -i 's|^device.names=.*|device.names="begonia,begoniain"|' "$work_dir/anykernel.sh"
 
     mkdir -p build_output
     (cd "$work_dir" && zip -r9 "../build_output/$zip_name" . -x '.git/*' '.gitignore' '.github/*')

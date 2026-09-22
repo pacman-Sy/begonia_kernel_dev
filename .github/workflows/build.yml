@@ -153,7 +153,7 @@ jobs:
           rm -rf AnyKernel3/.git AnyKernel3/.github
           cp "${{ env.BUILD_DIR }}/arch/arm64/boot/Image" AnyKernel3/Image
           sed -i 's|^kernel.string=.*|kernel.string=Suzaku Kernel V2 - Begonia (Redmi Note 8 Pro)|' AnyKernel3/anykernel.sh
-          sed -i 's|^device.names=.*|device.names="begonia"|' AnyKernel3/anykernel.sh
+          sed -i 's|^device.names=.*|device.names="begonia,begoniain"|' AnyKernel3/anykernel.sh
           AK3_NAME="SuzakuKernel-begonia-$(date +%Y%m%d-%H%M%S)-AnyKernel3.zip"
           (cd AnyKernel3 && zip -r9 "../build_output/$AK3_NAME" . -x '.git/*' '.gitignore' '.github/*')
           echo "Created build_output/$AK3_NAME"
