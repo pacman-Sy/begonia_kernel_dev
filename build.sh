@@ -63,8 +63,10 @@ prepare() {
     fi
 
     # Backport fixes onto the KernelSU-Next checkout (kept pristine in git).
-    # KSUN upstream only defines syscall_fn_t for x86_64; arm64's
-    # sys_call_table is `void * const []`.
+    # 1. syscall_fn_t: KSUN upstream only defines it for x86_64; arm64's
+    #    sys_call_table is `void * const []`.
+    # 2. linux/pgtable.h: split out of linux/mm.h in 5.x; on 4.14 the
+    #    contents still live in asm/pgtable.h (pulled in via linux/mm.h).
     python3 - <<'PY'
     p = 'KernelSU/kernel/hook/syscall_hook.h'
     t = open(p).read()
@@ -80,6 +82,16 @@ prepare() {
         print('syscall_fn_t backport applied')
     else:
         print('syscall_fn_t backport already present or upstream fixed - skipping')
+
+    p = 'KernelSU/kernel/feature/sucompat.c'
+    t = open(p).read()
+    old = '#include <linux/pgtable.h>\n'
+    new = '#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)\n#include <linux/pgtable.h>\n#endif\n'
+    if old in t:
+        open(p, 'w').write(t.replace(old, new))
+        print('pgtable.h backport applied')
+    else:
+        print('pgtable.h backport already present or upstream fixed - skipping')
 PY
 
     

@@ -112,10 +112,12 @@ jobs:
           fi
           mkdir -p "${{ env.BUILD_DIR }}"
 
-      - name: Backport fixes onto KernelSU-Next (arm64 syscall_fn_t)
+      - name: Backport fixes onto KernelSU-Next (arm64 compat)
         run: |
-          # KSUN upstream only defines syscall_fn_t for x86_64; arm64's
-          # sys_call_table is `void * const []`, so provide the typedef.
+          # 1. syscall_fn_t: KSUN upstream only defines it for x86_64; arm64's
+          #    sys_call_table is `void * const []`, so provide the typedef.
+          # 2. linux/pgtable.h: split out of linux/mm.h in 5.x; on 4.14 the
+          #    contents still live in asm/pgtable.h (pulled in via linux/mm.h).
           # Applied to the submodule checkout at build time to keep the
           # submodule pin pristine (no -dirty).
           python3 - <<'PY'
@@ -131,6 +133,13 @@ jobs:
           assert old in t, 'syscall_hook.h pattern not found - upstream may have fixed it'
           open(p, 'w').write(t.replace(old, new))
           print('syscall_fn_t backport applied')
+
+          p = 'KernelSU/kernel/feature/sucompat.c'
+          t = open(p).read()
+          old = '#include <linux/pgtable.h>\n'
+          assert old in t, 'sucompat.c pgtable include not found - upstream may have fixed it'
+          open(p, 'w').write(t.replace(old, '#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)\n#include <linux/pgtable.h>\n#endif\n'))
+          print('pgtable.h backport applied')
           PY
 
       - name: Configure kernel
