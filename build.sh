@@ -83,25 +83,31 @@ configure() {
         exit 1
     fi
     
-    # Enable KSU and SUSFS options if not already enabled
-    if ! grep -q "CONFIG_KSU=y" "$BUILD_DIR/.config"; then
-        log_info "Enabling CONFIG_KSU..."
-        echo "CONFIG_KSU=y" >> "$BUILD_DIR/.config"
-    fi
-    
-    if ! grep -q "CONFIG_KSU_MANUAL_HOOK=y" "$BUILD_DIR/.config"; then
-        log_info "Enabling CONFIG_KSU_MANUAL_HOOK..."
-        echo "CONFIG_KSU_MANUAL_HOOK=y" >> "$BUILD_DIR/.config"
-    fi
-    
-    if ! grep -q "CONFIG_KSU_SUSFS=y" "$BUILD_DIR/.config"; then
-        log_info "Enabling CONFIG_KSU_SUSFS..."
-        echo "CONFIG_KSU_SUSFS=y" >> "$BUILD_DIR/.config"
-    fi
+    # Ensure the KernelSU/SUSFS prerequisites are present. Exact-match greps only:
+    # a substring grep is fooled by lines like CONFIG_KSU_SUSFS=yFOO=y, and if a
+    # dependency is missing (KSU needs KPROBES && EXT4_FS) Kconfig silently drops
+    # these symbols -> a kernel with no KernelSU and no SUSFS.
+    local ksu_cfg="$BUILD_DIR/.config"
+    for sym in CONFIG_MODULES=y CONFIG_KPROBES=y CONFIG_KALLSYMS=y CONFIG_KALLSYMS_ALL=y \
+               CONFIG_EXT4_FS=y CONFIG_KSU=y CONFIG_KSU_SUSFS=y; do
+        if ! grep -qx "$sym" "$ksu_cfg"; then
+            log_info "Enabling $sym"
+            echo "$sym" >> "$ksu_cfg"
+        fi
+    done
     
     # Run olddefconfig to resolve any dependencies
     log_info "Running olddefconfig..."
     make O="$BUILD_DIR" ARCH=$ARCH SUBARCH=$SUBARCH CROSS_COMPILE=$CROSS_COMPILE olddefconfig
+
+    # Fail loudly if Kconfig dropped any of them after resolution
+    for sym in CONFIG_MODULES=y CONFIG_KPROBES=y CONFIG_KALLSYMS_ALL=y CONFIG_EXT4_FS=y \
+               CONFIG_KSU=y CONFIG_KSU_SUSFS=y CONFIG_KSU_SUSFS_SUS_PATH=y; do
+        if ! grep -qx "$sym" "$ksu_cfg"; then
+            log_error "$sym is missing from $ksu_cfg after olddefconfig - KernelSU/SUSFS would not be built"
+            exit 1
+        fi
+    done
     
     log_info "Configuration complete."
 }
@@ -123,6 +129,19 @@ build() {
          dtbs \
          Image.gz-dtb \
          modules
+    
+    # Fail loudly if KernelSU/SUSFS are not actually linked into the kernel
+    local map="$BUILD_DIR/System.map"
+    if [ -f "$map" ]; then
+        local ksu_count susfs_count
+        ksu_count=$(grep -c ' ksu_' "$map" || true)
+        susfs_count=$(grep -c 'susfs' "$map" || true)
+        log_info "KernelSU symbols: $ksu_count, SUSFS symbols: $susfs_count"
+        if [ "${ksu_count:-0}" -lt 5 ] || [ "${susfs_count:-0}" -lt 5 ]; then
+            log_error "KernelSU/SUSFS symbols missing from $map - the kernel would boot without root"
+            exit 1
+        fi
+    fi
     
     log_info "Build complete!"
 }

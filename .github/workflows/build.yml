@@ -103,25 +103,33 @@ jobs:
             exit 1
           fi
           
-          # Ensure KSU options are enabled
-          if ! grep -q "CONFIG_KSU=y" "${{ env.BUILD_DIR }}/.config"; then
-            echo "CONFIG_KSU=y" >> "${{ env.BUILD_DIR }}/.config"
-          fi
-          
-          if ! grep -q "CONFIG_KSU_MANUAL_HOOK=y" "${{ env.BUILD_DIR }}/.config"; then
-            echo "CONFIG_KSU_MANUAL_HOOK=y" >> "${{ env.BUILD_DIR }}/.config"
-          fi
-          
-          if ! grep -q "CONFIG_KSU_SUSFS=y" "${{ env.BUILD_DIR }}/.config"; then
-            echo "CONFIG_KSU_SUSFS=y" >> "${{ env.BUILD_DIR }}/.config"
-          fi
-          
+          # Ensure the KernelSU/SUSFS prerequisites are present. Exact-match greps
+          # only: a substring grep is fooled by lines like CONFIG_KSU_SUSFS=yFOO=y,
+          # and if a dependency is missing (KSU needs KPROBES && EXT4_FS) Kconfig
+          # silently drops these symbols -> a kernel with no KernelSU and no SUSFS.
+          ksu_cfg="${{ env.BUILD_DIR }}/.config"
+          for sym in CONFIG_MODULES=y CONFIG_KPROBES=y CONFIG_KALLSYMS=y CONFIG_KALLSYMS_ALL=y \
+                     CONFIG_EXT4_FS=y CONFIG_KSU=y CONFIG_KSU_SUSFS=y; do
+            grep -qx "$sym" "$ksu_cfg" || echo "$sym" >> "$ksu_cfg"
+          done
+
           # Run olddefconfig
           make O="${{ env.BUILD_DIR }}" \
                ARCH=${{ env.ARCH }} \
                SUBARCH=${{ env.SUBARCH }} \
                CROSS_COMPILE=${{ env.CROSS_COMPILE }} \
                olddefconfig
+
+          # Fail loudly if Kconfig dropped any of them after resolution
+          for sym in CONFIG_MODULES=y CONFIG_KPROBES=y CONFIG_KALLSYMS_ALL=y CONFIG_EXT4_FS=y \
+                     CONFIG_KSU=y CONFIG_KSU_SUSFS=y CONFIG_KSU_SUSFS_SUS_PATH=y; do
+            if ! grep -qx "$sym" "$ksu_cfg"; then
+              echo "::error::$sym is missing from $ksu_cfg after olddefconfig - KernelSU/SUSFS would not be built"
+              exit 1
+            fi
+          done
+          echo "KernelSU/SUSFS config verified:"
+          grep -E '^CONFIG_(KSU|KSU_SUSFS|KPROBES|KALLSYMS|KALLSYMS_ALL|EXT4_FS|MODULES)=' "$ksu_cfg"
 
       - name: Build kernel
         run: |
@@ -141,6 +149,26 @@ jobs:
           echo ""
           echo "=== Build Stats ==="
           du -sh "${{ env.BUILD_DIR }}" 2>/dev/null || true
+
+      - name: Verify KernelSU and SUSFS are in the kernel
+        run: |
+          map="${{ env.BUILD_DIR }}/System.map"
+          if [ ! -f "$map" ]; then
+            echo "::error::$map not found"
+            exit 1
+          fi
+          ksu_count=$(grep -c ' ksu_' "$map" || true)
+          susfs_count=$(grep -c 'susfs' "$map" || true)
+          echo "KernelSU symbols: $ksu_count, SUSFS symbols: $susfs_count"
+          if [ "$ksu_count" -lt 5 ]; then
+            echo "::error::KernelSU symbols missing from $map - CONFIG_KSU did not build"
+            exit 1
+          fi
+          if [ "$susfs_count" -lt 5 ]; then
+            echo "::error::SUSFS symbols missing from $map - CONFIG_KSU_SUSFS did not build"
+            exit 1
+          fi
+          grep -E ' ksu_(handle_execveat|handle_faccessat|handle_stat|handle_vfs_read)$' "$map" || true
 
       - name: Package TWRP flashable AnyKernel3 zip
         run: |

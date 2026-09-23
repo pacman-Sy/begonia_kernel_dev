@@ -27,18 +27,34 @@ done
 
 # payload structure: gzip(kernel) + appended dtb (MTK Image.gz-dtb convention)
 if [ -f "$work/Image.gz-dtb" ]; then
-python3 - "$work/Image.gz-dtb" <<'PY'
+python3 - "$work/Image.gz-dtb" "$work/kernel.bin" <<'PY'
 import sys, zlib
-p = sys.argv[1]
-data = open(p, 'rb').read()
+src, dst = sys.argv[1], sys.argv[2]
+data = open(src, 'rb').read()
 assert data[:2] == b'\x1f\x8b', 'not a gzip stream'
 d = zlib.decompressobj(31)          # 31 = gzip wrapper
 kernel = d.decompress(data)
 rest = d.unused_data
+open(dst, 'wb').write(kernel)
 print(f"  PASS: gzip kernel inflates to {len(kernel)} bytes, appended {len(rest)} bytes, magic {rest[:4].hex()}")
 sys.exit(0 if rest[:4] == b'\xd0\x0d\xfe\xed' else 1)   # FDT_MAGIC d00dfeed
 PY
 [ $? -eq 0 ] || fail=1
+
+  # A kernel without KernelSU/SUSFS boots but gives no root, and nothing else in
+  # the pipeline notices: check the symbols are really inside the payload.
+  echo "== KernelSU / SUSFS inside the kernel =="
+  if grep -a -q 'ksu_' "$work/kernel.bin"; then
+    ok "KernelSU present ($(grep -a -o 'ksu_[a-z_]*' "$work/kernel.bin" | sort -u | wc -l) ksu_* symbols)"
+  else
+    bad "KernelSU missing from the kernel image (CONFIG_KSU not built?)"
+  fi
+  if grep -a -q 'susfs' "$work/kernel.bin"; then
+    ok "SUSFS present"
+  else
+    bad "SUSFS missing from the kernel image (CONFIG_KSU_SUSFS not built?)"
+  fi
+  rm -f "$work/kernel.bin"
 else
   bad "skipping payload structure check (no Image.gz-dtb)"
 fi
