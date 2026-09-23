@@ -89,7 +89,11 @@ configure() {
     # these symbols -> a kernel with no KernelSU and no SUSFS.
     local ksu_cfg="$BUILD_DIR/.config"
     for sym in CONFIG_MODULES=y CONFIG_KPROBES=y CONFIG_KALLSYMS=y CONFIG_KALLSYMS_ALL=y \
-               CONFIG_EXT4_FS=y CONFIG_KSU=y CONFIG_KSU_SUSFS=y; do
+               CONFIG_EXT4_FS=y CONFIG_KSU=y CONFIG_KSU_SUSFS=y \
+               CONFIG_KSU_SUSFS_SUS_PATH=y CONFIG_KSU_SUSFS_SUS_MOUNT=y \
+               CONFIG_KSU_SUSFS_SUS_KSTAT=y CONFIG_KSU_SUSFS_TRY_UMOUNT=y \
+               CONFIG_KSU_SUSFS_SPOOF_UNAME=y CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y \
+               CONFIG_KSU_SUSFS_OPEN_REDIRECT=y CONFIG_KSU_SUSFS_ENABLE_LOG=y; do
         if ! grep -qx "$sym" "$ksu_cfg"; then
             log_info "Enabling $sym"
             echo "$sym" >> "$ksu_cfg"
@@ -102,7 +106,11 @@ configure() {
 
     # Fail loudly if Kconfig dropped any of them after resolution
     for sym in CONFIG_MODULES=y CONFIG_KPROBES=y CONFIG_KALLSYMS_ALL=y CONFIG_EXT4_FS=y \
-               CONFIG_KSU=y CONFIG_KSU_SUSFS=y CONFIG_KSU_SUSFS_SUS_PATH=y; do
+               CONFIG_KSU=y CONFIG_KSU_SUSFS=y CONFIG_KSU_SUSFS_SUS_PATH=y \
+               CONFIG_KSU_SUSFS_SUS_MOUNT=y CONFIG_KSU_SUSFS_SUS_KSTAT=y \
+               CONFIG_KSU_SUSFS_TRY_UMOUNT=y CONFIG_KSU_SUSFS_SPOOF_UNAME=y \
+               CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y \
+               CONFIG_KSU_SUSFS_OPEN_REDIRECT=y; do
         if ! grep -qx "$sym" "$ksu_cfg"; then
             log_error "$sym is missing from $ksu_cfg after olddefconfig - KernelSU/SUSFS would not be built"
             exit 1

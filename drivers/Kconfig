@@ -227,20 +227,6 @@ source "drivers/mihw/Kconfig"
 
 source "drivers/kernelsu/Kconfig"
 
-# KSU SUSFS options (added here as the upstream Kconfig doesn't include them)
-config KSU_SUSFS
-	bool "KernelSU SUSFS support"
-	depends on KSU
-	default y
-	help
-	  Enable SUSFS (Suspicious File System) support for KernelSU.
-	  This allows hiding files and directories from specific processes.
-
-config KSU_SUSFS_SUS_PATH
-	bool "SUSFS path hiding support"
-	depends on KSU_SUSFS
-	default y
-	help
-	  Enable path hiding functionality for SUSFS.
+source "drivers/susfs/Kconfig"
 
 endmenu
