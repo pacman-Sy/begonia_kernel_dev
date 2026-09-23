@@ -58,9 +58,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential \
-            clang-18 \
+            clang-21 \
             lld \
-            llvm-18 \
+            llvm-21 \
             ccache \
             gcc-aarch64-linux-gnu \
             binutils-aarch64-linux-gnu \
@@ -74,7 +74,7 @@ jobs:
             libncurses-dev \
             zip
           # Use unversioned LLVM tool names (clang, ld.lld, llvm-ar, ...)
-          echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
+          echo "/usr/lib/llvm-21/bin" >> "$GITHUB_PATH"
 
       - name: Restore ccache
         uses: actions/cache/restore@v4
@@ -114,36 +114,61 @@ jobs:
 
       - name: Backport fixes onto KernelSU-Next (arm64 compat)
         run: |
-          # KSUN targets GKI/5.x; begonia is 4.14 arm64. Three patches applied
-          # to the submodule checkout at build time so the pin stays pristine.
-          python3 - <<'PY'
-          p = 'KernelSU/kernel/hook/syscall_hook.h'
-          t = open(p).read()
-          old = '#if defined(__x86_64__)\ntypedef sys_call_ptr_t syscall_fn_t;\n#endif'
-          new = ('#if defined(__x86_64__)\ntypedef sys_call_ptr_t syscall_fn_t;\n'
-                 '#elif defined(__aarch64__)\n'
-                 'typedef long (*syscall_fn_t)(const struct pt_regs *regs);\n'
-                 '#else\n'
-                 'typedef long (*syscall_fn_t)(const struct pt_regs *regs);\n'
-                 '#endif')
-          assert old in t, 'syscall_hook.h pattern not found'
-          open(p, 'w').write(t.replace(old, new))
-          print('syscall_fn_t backport applied')
-
-          p = 'KernelSU/kernel/feature/sucompat.c'
-          t = open(p).read()
-          old = '#include <linux/pgtable.h>\n'
-          assert old in t, 'sucompat.c pgtable include not found'
-          open(p, 'w').write(t.replace(old, '#include <linux/version.h>\n#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)\n#include <linux/pgtable.h>\n#endif\n'))
-          print('pgtable.h backport applied')
-
-          p = 'KernelSU/kernel/hook/syscall_event_bridge.c'
-          t = open(p).read()
-          old = '#include <linux/static_key.h>\n'
-          assert old in t, 'syscall_event_bridge.c static_key include not found'
-          open(p, 'w').write(t.replace(old, old + '#include <linux/uaccess.h>\n'))
-          print('uaccess.h backport applied')
+          # KSUN targets GKI/5.x; begonia is 4.14 arm64. Applied at build time so the
+          # submodule pin stays pristine. Backports so far:
+          #   1. syscall_fn_t typedef (arm64 needs function pointer type)
+          #   2. linux/pgtable.h (split out of mm.h in 5.x, guarded)
+          #   3. linux/uaccess.h in syscall_event_bridge.c (4.14 gap)
+          python3 <<'PY'
+          patches = {
+            'KernelSU/kernel/hook/syscall_hook.h': (
+              '#if defined(__x86_64__)
+typedef sys_call_ptr_t syscall_fn_t;
+#endif',
+              '#if defined(__x86_64__)
+typedef sys_call_ptr_t syscall_fn_t;
+'
+              '#elif defined(__aarch64__)
+'
+              'typedef long (*syscall_fn_t)(const struct pt_regs *regs);
+'
+              '#else
+'
+              'typedef long (*syscall_fn_t)(const struct pt_regs *regs);
+'
+              '#endif
+'
+            ),
+            'KernelSU/kernel/feature/sucompat.c': (
+              '#include <linux/pgtable.h>
+',
+              '#include <linux/version.h>
+'
+              '#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
+'
+              '#include <linux/pgtable.h>
+'
+              '#endif
+'
+            ),
+            'KernelSU/kernel/hook/syscall_event_bridge.c': (
+              '#include <linux/static_key.h>
+',
+              '#include <linux/static_key.h>
+'
+              '#include <linux/uaccess.h>
+'
+            ),
+          }
+          for path, (old, new) in patches.items():
+            t = open(path).read()
+            if old in t:
+              open(path, 'w').write(t.replace(old, new))
+              print('patched', path)
+            else:
+              print('already patched or upstream changed:', path)
           PY
+
 
       - name: Configure kernel
         run: |
