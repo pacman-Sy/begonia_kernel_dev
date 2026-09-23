@@ -112,55 +112,58 @@ jobs:
           fi
           mkdir -p "${{ env.BUILD_DIR }}"
 
-      - name: Backport fixes onto KernelSU-Next (arm64 compat)
-        run: |
-          # KSUN targets GKI/5.x; begonia is 4.14 arm64. Applied at build time so the
-          # submodule pin stays pristine. Backports so far:
-          #   1. syscall_fn_t typedef (arm64 needs function pointer type)
-          #   2. linux/pgtable.h (split out of mm.h in 5.x, guarded)
-          #   3. linux/uaccess.h in syscall_event_bridge.c (4.14 gap)
+
           python3 <<'PY'
-          patches = {
-            'KernelSU/kernel/hook/syscall_hook.h': (
-              '#if defined(__x86_64__)
-typedef sys_call_ptr_t syscall_fn_t;
-#endif',
-              '#if defined(__x86_64__)
-typedef sys_call_ptr_t syscall_fn_t;
-'
-              '#elif defined(__aarch64__)
-'
-              'typedef long (*syscall_fn_t)(const struct pt_regs *regs);
-'
-              '#else
-'
-              'typedef long (*syscall_fn_t)(const struct pt_regs *regs);
-'
-              '#endif
-'
-            ),
-            'KernelSU/kernel/feature/sucompat.c': (
-              '#include <linux/pgtable.h>
-',
-              '#include <linux/version.h>
-'
-              '#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
-'
-              '#include <linux/pgtable.h>
-'
-              '#endif
-'
-            ),
-            'KernelSU/kernel/hook/syscall_event_bridge.c': (
-              '#include <linux/static_key.h>
-',
-              '#include <linux/static_key.h>
-'
-              '#include <linux/uaccess.h>
-'
-            ),
-          }
-          for path, (old, new) in patches.items():
+          patches = [
+            # 1. syscall_fn_t: arm64 needs a real function-pointer typedef
+            ('KernelSU/kernel/hook/syscall_hook.h',
+             '#if defined(__x86_64__)\ntypedef sys_call_ptr_t syscall_fn_t;\n#endif',
+             '#if defined(__x86_64__)\ntypedef sys_call_ptr_t syscall_fn_t;\n'
+             '#elif defined(__aarch64__)\n'
+             'typedef long (*syscall_fn_t)(const struct pt_regs *regs);\n'
+             '#else\n'
+             'typedef long (*syscall_fn_t)(const struct pt_regs *regs);\n'
+             '#endif\n',
+            # 2. linux/pgtable.h (split out of linux/mm.h in 5.x, guarded)
+            ('KernelSU/kernel/feature/sucompat.c',
+             '#include <linux/pgtable.h>\n',
+             '#include <linux/version.h>\n'
+             '#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)\n'
+             '#include <linux/pgtable.h>\n'
+             '#endif\n',
+            # 3. linux/uaccess.h needed by syscall_event_bridge.c on 4.14
+            ('KernelSU/kernel/hook/syscall_event_bridge.c',
+             '#include <linux/static_key.h>\n',
+             '#include <linux/static_key.h>\n'
+             '#include <linux/uaccess.h>\n',
+            # 4. patch_memory.c: three functions missing on 4.14
+            ('KernelSU/kernel/hook/arm64/patch_memory.c',
+             '',
+             '#include <linux/version.h>\n'
+             '#include <linux/uaccess.h>\n'
+             '#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)\n'
+             '#include <asm/kprobes.h>\n'
+             '#else\n'
+             'static inline unsigned long ksu_pte_to_phys(pte_t pte)\n'
+             '{\n'
+             '    return __pa(pte_val(pte));\n'
+             '}\n'
+             '#define __pte_to_phys ksu_pte_to_phys\n'
+             '#endif\n'
+             '#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)\n'
+             '#define ksu_copy_to_kernel_nofault copy_to_kernel_nofault\n'
+             '#else\n'
+             'static inline long ksu_copy_to_kernel_nofault(void *to, const void *from, unsigned long n)\n'
+             '{\n'
+             '    return __copy_to_user_nofault(to, from, n) ? -EFAULT : 0;\n'
+             '}\n'
+             '#endif\n'
+             '#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 14, 0)\n'
+             '#elif defined(__aarch64__)\n'
+             '#define __flush_icache_range flush_icache_range\n'
+             '#endif\n',
+          ]
+          for path, old, new in patches:
             t = open(path).read()
             if old in t:
               open(path, 'w').write(t.replace(old, new))
