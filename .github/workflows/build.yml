@@ -93,6 +93,27 @@ jobs:
           fi
           mkdir -p "${{ env.BUILD_DIR }}"
 
+      - name: Backport fixes onto KernelSU-Next (arm64 syscall_fn_t)
+        run: |
+          # KSUN upstream only defines syscall_fn_t for x86_64; arm64's
+          # sys_call_table is `void * const []`, so provide the typedef.
+          # Applied to the submodule checkout at build time to keep the
+          # submodule pin pristine (no -dirty).
+          python3 - <<'PY'
+          p = 'KernelSU/kernel/hook/syscall_hook.h'
+          t = open(p).read()
+          old = '#if defined(__x86_64__)\ntypedef sys_call_ptr_t syscall_fn_t;\n#endif'
+          new = ('#if defined(__x86_64__)\ntypedef sys_call_ptr_t syscall_fn_t;\n'
+                 '#elif defined(__aarch64__)\n'
+                 'typedef void *syscall_fn_t;\n'
+                 '#else\n'
+                 'typedef void *syscall_fn_t;\n'
+                 '#endif')
+          assert old in t, 'syscall_hook.h pattern not found - upstream may have fixed it'
+          open(p, 'w').write(t.replace(old, new))
+          print('syscall_fn_t backport applied')
+          PY
+
       - name: Configure kernel
         run: |
           # Copy defconfig

@@ -61,6 +61,27 @@ prepare() {
         log_info "Initializing git submodules..."
         git submodule update --init --recursive KernelSU
     fi
+
+    # Backport fixes onto the KernelSU-Next checkout (kept pristine in git).
+    # KSUN upstream only defines syscall_fn_t for x86_64; arm64's
+    # sys_call_table is `void * const []`.
+    python3 - <<'PY'
+    p = 'KernelSU/kernel/hook/syscall_hook.h'
+    t = open(p).read()
+    old = '#if defined(__x86_64__)\ntypedef sys_call_ptr_t syscall_fn_t;\n#endif'
+    new = ('#if defined(__x86_64__)\ntypedef sys_call_ptr_t syscall_fn_t;\n'
+           '#elif defined(__aarch64__)\n'
+           'typedef void *syscall_fn_t;\n'
+           '#else\n'
+           'typedef void *syscall_fn_t;\n'
+           '#endif')
+    if old in t:
+        open(p, 'w').write(t.replace(old, new))
+        print('syscall_fn_t backport applied')
+    else:
+        print('syscall_fn_t backport already present or upstream fixed - skipping')
+PY
+
     
     # Clean previous build
     if [ -d "$BUILD_DIR" ]; then
