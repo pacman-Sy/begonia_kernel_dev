@@ -64,7 +64,9 @@ prepare() {
 
     # Backport fixes onto the KernelSU-Next checkout (kept pristine in git).
     # 1. syscall_fn_t: KSUN upstream only defines it for x86_64; arm64's
-    #    sys_call_table is `void * const []`.
+    #    sys_call_table is `void * const []`. Entries are invoked as
+    #    table[nr](regs), so the element type must be a function
+    #    pointer taking const struct pt_regs *.
     # 2. linux/pgtable.h: split out of linux/mm.h in 5.x; on 4.14 the
     #    contents still live in asm/pgtable.h (pulled in via linux/mm.h).
     python3 - <<'PY'
@@ -73,9 +75,9 @@ prepare() {
     old = '#if defined(__x86_64__)\ntypedef sys_call_ptr_t syscall_fn_t;\n#endif'
     new = ('#if defined(__x86_64__)\ntypedef sys_call_ptr_t syscall_fn_t;\n'
            '#elif defined(__aarch64__)\n'
-           'typedef void *syscall_fn_t;\n'
+           'typedef long (*syscall_fn_t)(const struct pt_regs *regs);\n'
            '#else\n'
-           'typedef void *syscall_fn_t;\n'
+           'typedef long (*syscall_fn_t)(const struct pt_regs *regs);\n'
            '#endif')
     if old in t:
         open(p, 'w').write(t.replace(old, new))
@@ -86,7 +88,7 @@ prepare() {
     p = 'KernelSU/kernel/feature/sucompat.c'
     t = open(p).read()
     old = '#include <linux/pgtable.h>\n'
-    new = '#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)\n#include <linux/pgtable.h>\n#endif\n'
+    new = '#include <linux/version.h>\n#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)\n#include <linux/pgtable.h>\n#endif\n'
     if old in t:
         open(p, 'w').write(t.replace(old, new))
         print('pgtable.h backport applied')

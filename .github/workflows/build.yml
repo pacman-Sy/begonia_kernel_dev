@@ -115,7 +115,9 @@ jobs:
       - name: Backport fixes onto KernelSU-Next (arm64 compat)
         run: |
           # 1. syscall_fn_t: KSUN upstream only defines it for x86_64; arm64's
-          #    sys_call_table is `void * const []`, so provide the typedef.
+          #    sys_call_table is `void * const []`. Entries are invoked as
+          #    table[nr](regs), so the element type must be a function
+          #    pointer taking const struct pt_regs *.
           # 2. linux/pgtable.h: split out of linux/mm.h in 5.x; on 4.14 the
           #    contents still live in asm/pgtable.h (pulled in via linux/mm.h).
           # Applied to the submodule checkout at build time to keep the
@@ -126,9 +128,9 @@ jobs:
           old = '#if defined(__x86_64__)\ntypedef sys_call_ptr_t syscall_fn_t;\n#endif'
           new = ('#if defined(__x86_64__)\ntypedef sys_call_ptr_t syscall_fn_t;\n'
                  '#elif defined(__aarch64__)\n'
-                 'typedef void *syscall_fn_t;\n'
+                 'typedef long (*syscall_fn_t)(const struct pt_regs *regs);\n'
                  '#else\n'
-                 'typedef void *syscall_fn_t;\n'
+                 'typedef long (*syscall_fn_t)(const struct pt_regs *regs);\n'
                  '#endif')
           assert old in t, 'syscall_hook.h pattern not found - upstream may have fixed it'
           open(p, 'w').write(t.replace(old, new))
@@ -138,7 +140,7 @@ jobs:
           t = open(p).read()
           old = '#include <linux/pgtable.h>\n'
           assert old in t, 'sucompat.c pgtable include not found - upstream may have fixed it'
-          open(p, 'w').write(t.replace(old, '#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)\n#include <linux/pgtable.h>\n#endif\n'))
+          open(p, 'w').write(t.replace(old, '#include <linux/version.h>\n#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)\n#include <linux/pgtable.h>\n#endif\n'))
           print('pgtable.h backport applied')
           PY
 
