@@ -123,7 +123,7 @@ jobs:
           # Applied to the submodule checkout at build time to keep the
           # submodule pin pristine (no -dirty).
           python3 - <<'PY'
-          p = 'KernelSU/kernel/hook/syscall_hook.h'
+                    p = 'KernelSU/kernel/hook/syscall_hook.h'
           t = open(p).read()
           old = '#if defined(__x86_64__)\ntypedef sys_call_ptr_t syscall_fn_t;\n#endif'
           new = ('#if defined(__x86_64__)\ntypedef sys_call_ptr_t syscall_fn_t;\n'
@@ -142,6 +142,13 @@ jobs:
           assert old in t, 'sucompat.c pgtable include not found - upstream may have fixed it'
           open(p, 'w').write(t.replace(old, '#include <linux/version.h>\n#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)\n#include <linux/pgtable.h>\n#endif\n'))
           print('pgtable.h backport applied')
+
+          p = 'KernelSU/kernel/hook/syscall_event_bridge.c'
+          t = open(p).read()
+          old = '#include <linux/static_key.h>\n'
+          assert old in t, 'syscall_event_bridge.c static_key include not found'
+          open(p, 'w').write(t.replace(old, old + '#include <linux/uaccess.h>\n'))
+          print('uaccess.h backport applied')
           PY
 
       - name: Configure kernel
