@@ -61,6 +61,7 @@ jobs:
             clang-18 \
             lld \
             llvm-18 \
+            ccache \
             gcc-aarch64-linux-gnu \
             binutils-aarch64-linux-gnu \
             bison \
@@ -74,6 +75,24 @@ jobs:
             zip
           # Use unversioned LLVM tool names (clang, ld.lld, llvm-ar, ...)
           echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
+
+      - name: Restore ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.ccache
+          # Compiler + defconfig in the key: a new toolchain or config change
+          # must not reuse stale objects. Fall back to newest ccache of same OS.
+          key: ccache-${{ runner.os }}-clang18-${{ hashFiles('arch/arm64/configs/begonia_user_defconfig') }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-clang18-${{ hashFiles('arch/arm64/configs/begonia_user_defconfig') }}-
+            ccache-${{ runner.os }}-clang18-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=sloppiness=file_macro,include_file_mtime,include_file_ctime,time_macros,pch_defines,random_seed
+          ccache --set-config=hash_dir=false
+          ccache --max-size=2G
+          ccache -z
 
       - name: Verify Clang compiler
         run: |
@@ -161,6 +180,8 @@ jobs:
           grep -E '^CONFIG_(KSU|KSU_SUSFS|KPROBES|KALLSYMS|KALLSYMS_ALL|EXT4_FS|MODULES)=' "$ksu_cfg"
 
       - name: Build kernel
+        env:
+          CC: "ccache clang"
         run: |
           make O="${{ env.BUILD_DIR }}" \
                ARCH=${{ env.ARCH }} \
@@ -170,6 +191,15 @@ jobs:
                dtbs \
                Image.gz-dtb \
                modules
+          echo "=== ccache stats ==="
+          ccache -s || true
+
+      - name: Save ccache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ runner.os }}-clang18-${{ hashFiles('arch/arm64/configs/begonia_user_defconfig') }}-${{ github.sha }}
 
       - name: Show build output
         run: |
