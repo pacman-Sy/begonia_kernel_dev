@@ -40,18 +40,16 @@ jobs:
             ccache-${{ github.ref_name }}-
             ccache-
 
-      - name: Cache Toolchain (kerdevdep)
+      # build.sh extracts the toolchain into $TC_ROOT ($HOME/toolchains) as
+      # clang-<ver>/ and gcc-<GCC_VER>/, and unpacks AnyKernel3 into ./anykernel.
+      - name: Cache Toolchain
         uses: actions/cache@v4
         with:
           path: |
-            kerdevdep/clang
-            kerdevdep/gcc
-            kerdevdep/anykernel
-            kerdevdep/usr
-            kerdevdep/lib
-            kerdevdep/bin
-            kerdevdep/env.sh
-          key: kerdevdep-toolchains-llvm-21.1.8-v2
+            toolchains/clang-21.1.8
+            toolchains/gcc-android-11.0.0_r1
+            anykernel
+          key: toolchains-llvm-21.1.8-v3
 
       - name: Build Pox Kernel & Flashable Zip
         id: build_kernel

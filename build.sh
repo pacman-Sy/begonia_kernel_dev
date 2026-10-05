@@ -81,7 +81,7 @@ setup_clang() {
     else
         log "Downloading clang $CLANG_VER ($CLANG_SRC) ..."
         rm -rf "$tc_dir" "$TC_ROOT/clang.tar.gz" "$TC_ROOT/clang.tar.xz"
-        curl -L --fail --retry 3 -o "$TC_ROOT/clang.tar.$CLANG_ARCHIVE" "$CLANG_URL"
+        curl -L --fail --retry 3 -o "$TC_ROOT/clang.$CLANG_ARCHIVE" "$CLANG_URL"
         rm -rf "$TC_ROOT/clang-extract"
         mkdir -p "$TC_ROOT/clang-extract"
         if [[ "$CLANG_ARCHIVE" == "tar.xz" ]]; then
@@ -100,7 +100,7 @@ setup_clang() {
             [[ -n "$inner" ]] || { echo "ERROR: no clang binary in archive" >&2; exit 1; }
             mv "$inner" "$tc_dir"
         fi
-        rm -rf "$TC_ROOT/clang-extract" "$TC_ROOT/clang.tar.$CLANG_ARCHIVE"
+        rm -rf "$TC_ROOT/clang-extract" "$TC_ROOT/clang.$CLANG_ARCHIVE"
         TC_CLANG="$tc_dir"
     fi
     [[ -x "$TC_CLANG/bin/clang" ]] || { echo "ERROR: clang missing at $TC_CLANG/bin/clang" >&2; exit 1; }
