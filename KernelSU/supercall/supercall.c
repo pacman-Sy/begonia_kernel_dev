@@ -261,27 +261,31 @@ static int reboot_handler_pre(struct kprobe *p, struct pt_regs *regs)
     return 0;
 }
 
+#ifdef CONFIG_KPROBES
 static struct kprobe reboot_kp = {
     .symbol_name = REBOOT_SYMBOL,
     .pre_handler = reboot_handler_pre,
 };
+#endif
 
 void __init ksu_supercalls_init(void)
 {
-    int rc;
-
     ksu_supercall_dump_commands();
 
-    rc = register_kprobe(&reboot_kp);
+#ifdef CONFIG_KPROBES
+    int rc = register_kprobe(&reboot_kp);
     if (rc) {
         pr_err("reboot kprobe failed: %d\n", rc);
     } else {
         pr_info("reboot kprobe registered successfully\n");
     }
+#endif
 }
 
 void __exit ksu_supercalls_exit(void)
 {
+#ifdef CONFIG_KPROBES
     unregister_kprobe(&reboot_kp);
+#endif
     ksu_supercall_cleanup_state();
 }

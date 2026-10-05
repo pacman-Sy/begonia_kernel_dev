@@ -24,6 +24,22 @@
 #define __pte_to_phys(pte) page_to_phys(pte_page(pte))
 #endif
 
+#ifndef __pmd_to_phys
+#define __pmd_to_phys(pmd) __pfn_to_phys(pmd_pfn(pmd))
+#endif
+
+#ifndef __pud_to_phys
+#define __pud_to_phys(pud) __pfn_to_phys(pud_pfn(pud))
+#endif
+
+#ifndef pmd_leaf
+#define pmd_leaf(pmd) pmd_sect(pmd)
+#endif
+
+#ifndef pud_leaf
+#define pud_leaf(pud) pud_sect(pud)
+#endif
+
 // https://github.com/fuqiuluo/ovo/blob/f7da411458e87d32438dc14fce5a3313ed0c967e/ovo/mmuhack.c#L21
 
 // Translate a kernel virtual address to a physical address by walking the
