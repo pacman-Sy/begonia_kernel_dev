@@ -19,7 +19,8 @@ jobs:
       KERNEL_NAME: MeTh-Kernel-begonia
       TC_ROOT: ${{ github.workspace }}/toolchains
       OUT_DIR: out
-      CLANG_VER: clang-r383902
+      CLANG_SRC: llvm
+      CLANG_VER: "21.1.8"
       GCC_VER: android-11.0.0_r1
     steps:
       - name: Checkout
@@ -44,7 +45,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/toolchains
-          key: toolchains-${{ env.CLANG_VER }}-${{ env.GCC_VER }}
+          key: toolchains-${{ env.CLANG_SRC }}-${{ env.CLANG_VER }}-${{ env.GCC_VER }}
 
       - name: Build kernel
         run: |

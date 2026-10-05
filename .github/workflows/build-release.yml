@@ -51,7 +51,7 @@ jobs:
             kerdevdep/lib
             kerdevdep/bin
             kerdevdep/env.sh
-          key: kerdevdep-toolchains-v1
+          key: kerdevdep-toolchains-llvm-21.1.8-v2
 
       - name: Build Pox Kernel & Flashable Zip
         id: build_kernel

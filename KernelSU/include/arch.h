@@ -19,7 +19,12 @@
 #define __PT_IP_REG pc
 #define __PT_ORIG_SYSCALL_REG regs[8]
 
-#define REBOOT_SYMBOL "__arm64_sys_reboot"
+// This is Linux 4.14. SYSCALL_DEFINE4(reboot, ...) generates a plain
+// "sys_reboot"; the "__arm64_sys_*" syscall wrapper naming used by
+// KernelSU-Next only exists on 5.x+ where CONFIG_ARCH_HAS_SYSCALL_WRAPPER
+// is set. Resolving the unprefixed name keeps reboot-via-supercall working.
+// Available through KALLSYMS_ALL + the "sys_reboot" kallsyms entry.
+#define REBOOT_SYMBOL "sys_reboot"
 #define SYS_READ_SYMBOL "__arm64_sys_read"
 #define SYS_EXECVE_SYMBOL "__arm64_sys_execve"
 // https://cs.android.com/android/kernel/superproject/+/common-android-mainline:common/scripts/syscalltbl.sh;l=57;drc=9142be9e6443fd641ca37f820efe00d9cd890eb1

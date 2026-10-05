@@ -2056,7 +2056,11 @@ CONFIG_DM_UEVENT=y
 CONFIG_DM_VERITY=y
 CONFIG_DM_VERITY_FEC=y
 # CONFIG_DM_SWITCH is not set
-CONFIG_DM_LINEAR=y
+# DM linear target for KernelPatch dynamic-partition support. There is no
+# CONFIG_DM_LINEAR in this 4.14 tree: drivers/md/dm-linear.c has no Kconfig
+# symbol and is linked unconditionally through drivers/md/Makefile
+# dm-mod-y, so the linear target is always present. DM_VERITY above plus
+# DM_BUFIO/DM_CRYPT are the options that actually matter here.
 # CONFIG_DM_LOG_WRITES is not set
 # CONFIG_DM_INTEGRITY is not set
 # CONFIG_DM_VERITY_AVB is not set
