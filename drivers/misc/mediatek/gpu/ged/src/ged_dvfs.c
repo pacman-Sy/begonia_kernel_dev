@@ -2381,5 +2381,17 @@ module_param(gpu_cust_boost_freq, uint, 0644);
 module_param(gpu_cust_upbound_freq, uint, 0644);
 module_param(g_gpu_timer_based_emu, uint, 0644);
 module_param(gpu_bw_err_debug, uint, 0644);
+
+void ged_dvfs_set_gaming_boost(int enable)
+{
+	boost_gpu_enable = enable ? 1 : 0;
+#if (defined(GED_ENABLE_FB_DVFS) && defined(GED_ENABLE_DYNAMIC_DVFS_MARGIN))
+	if (enable)
+		ged_dvfs_margin_value(520); /* DYNAMIC_MARGIN_MODE_PERF + 20% margin */
+	else
+		ged_dvfs_margin_value(-1);  /* Default margin */
+#endif
+}
+EXPORT_SYMBOL(ged_dvfs_set_gaming_boost);
 #endif
 

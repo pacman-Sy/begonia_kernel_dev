@@ -23,6 +23,7 @@
 #include "topo_ctrl.h"
 #include "uload_ind.h"
 #include "syslimiter.h"
+#include "gaming_mode.h"
 
 
 int clstr_num;
@@ -106,6 +107,7 @@ static int __init init_perfmgr(void)
 	syslimiter_init(perfmgr_root);
 #endif
 	init_perfctl(perfmgr_root);
+	init_gaming_mode(perfmgr_root);
 
 #ifdef CONFIG_MTK_LOAD_TRACKER
 	init_uload_ind(NULL);

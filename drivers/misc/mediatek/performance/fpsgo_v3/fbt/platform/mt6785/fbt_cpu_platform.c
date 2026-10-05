@@ -62,6 +62,7 @@ void fbt_boost_dram(int boost)
 
 	fpsgo_systrace_c_fbt_gm(-100, 0, boost, "dram_boost");
 }
+EXPORT_SYMBOL(fbt_boost_dram);
 
 void fbt_set_boost_value(unsigned int base_blc)
 {

@@ -50,6 +50,7 @@ void eara_pass_perf_first_hint(int enable)
 {
 	is_perf_fist = enable;
 }
+EXPORT_SYMBOL(eara_pass_perf_first_hint);
 
 static unsigned int get_idx_in_pwr_tbl(enum ppm_cluster cluster)
 {

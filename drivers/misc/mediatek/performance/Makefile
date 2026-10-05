@@ -16,6 +16,7 @@ subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/performance/perf_ioctl/ \
 
 
 obj-y += perfmgr_main.o
+obj-y += gaming_mode.o
 obj-y += base/
 obj-y += boost_ctrl/
 obj-y += tchbst/

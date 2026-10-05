@@ -269,6 +269,7 @@ int fbt_cpu_set_bhr(int new_bhr)
 
 	return 0;
 }
+EXPORT_SYMBOL(fbt_cpu_set_bhr);
 
 int fbt_cpu_set_bhr_opp(int new_opp)
 {
@@ -293,6 +294,7 @@ int fbt_cpu_set_rescue_opp_c(int new_opp)
 
 	return 0;
 }
+EXPORT_SYMBOL(fbt_cpu_set_rescue_opp_c);
 
 int fbt_cpu_set_rescue_opp_f(int new_opp)
 {
@@ -317,6 +319,7 @@ int fbt_cpu_set_rescue_percent(int percent)
 
 	return 0;
 }
+EXPORT_SYMBOL(fbt_cpu_set_rescue_percent);
 
 int fbt_cpu_set_min_rescue_percent(int percent)
 {
@@ -374,6 +377,7 @@ int fbt_cpu_set_variance(int var)
 
 	return 0;
 }
+EXPORT_SYMBOL(fbt_cpu_set_variance);
 
 int fbt_cpu_set_floor_bound(int bound)
 {
@@ -593,6 +597,15 @@ static void fbt_set_ultra_rescue_locked(int input)
 
 	xgf_trace("fpsgo set ultra_rescue %d", input);
 }
+
+int fbt_cpu_set_ultra_rescue(int enable)
+{
+	mutex_lock(&fbt_mlock);
+	fbt_set_ultra_rescue_locked(enable);
+	mutex_unlock(&fbt_mlock);
+	return 0;
+}
+EXPORT_SYMBOL(fbt_cpu_set_ultra_rescue);
 
 static void fbt_recal_loading(int isolate);
 static void fbt_set_isolation_locked(int input)

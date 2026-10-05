@@ -184,6 +184,7 @@ int boost_write_for_perf_idx(int idx, int boost_value)
 
 	return 0;
 }
+EXPORT_SYMBOL(boost_write_for_perf_idx);
 
 int prefer_idle_for_perf_idx(int idx, int prefer_idle)
 {
@@ -214,6 +215,7 @@ int prefer_idle_for_perf_idx(int idx, int prefer_idle)
 
 	return 0;
 }
+EXPORT_SYMBOL(prefer_idle_for_perf_idx);
 
 int group_boost_read(int group_idx)
 {

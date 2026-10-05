@@ -2509,6 +2509,19 @@ void ged_kpi_set_game_hint(int mode)
 	}
 #endif /* MTK_GED_KPI */
 }
+
+void ged_kpi_set_gaming_boost(int enable)
+{
+#ifdef MTK_GED_KPI
+	gx_game_mode = enable ? 1 : 0;
+	gx_boost_on = enable ? 1 : 0;
+#ifdef GED_KPI_CPU_BOOST
+	gx_force_cpu_boost = enable ? 1 : 0;
+#endif
+	ged_kpi_set_game_hint_value(gx_game_mode);
+#endif
+}
+EXPORT_SYMBOL(ged_kpi_set_gaming_boost);
 /* ------------------------------------------------------------------- */
 void ged_kpi_set_target_FPS(u64 ulID, int target_FPS)
 {
