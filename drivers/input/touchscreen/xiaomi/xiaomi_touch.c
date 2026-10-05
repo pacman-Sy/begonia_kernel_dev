@@ -4,6 +4,8 @@
 
 static struct xiaomi_touch_pdata *touch_pdata;
 int mi_log_level;
+static int s_touch_game_mode = 0;
+static int s_touch_sensitivity = 0;
 
 static int xiaomi_touch_dev_open(struct inode *inode, struct file *file)
 {
@@ -177,6 +179,11 @@ int xiaomitouch_register_modedata(struct xiaomi_touch_interface *data)
 	touch_data->panel_vendor_read = data->panel_vendor_read;
 
 	mutex_unlock(&xiaomi_touch_dev.mutex);
+
+	if (s_touch_game_mode && touch_data->setModeValue)
+		touch_data->setModeValue(Touch_Game_Mode, s_touch_game_mode);
+	if (s_touch_sensitivity && touch_data->setModeValue)
+		touch_data->setModeValue(Touch_UP_THRESHOLD, s_touch_sensitivity);
 
 	return ret;
 }
@@ -382,6 +389,85 @@ static DEVICE_ATTR(panel_color, 0644, xiaomi_panel_color_show, NULL);
 static DEVICE_ATTR(log_debug, (S_IRUGO | S_IWUSR | S_IWGRP),
 		log_debug_show, log_debug_store);
 
+int pox_touch_game_mode_set(int enable)
+{
+	int ret = 0;
+	s_touch_game_mode = enable ? 1 : 0;
+	if (touch_pdata && touch_pdata->touch_data && touch_pdata->touch_data->setModeValue) {
+		ret = touch_pdata->touch_data->setModeValue(Touch_Game_Mode, s_touch_game_mode);
+		pr_info("Touch Game Mode set to %d (ret=%d)\n", s_touch_game_mode, ret);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(pox_touch_game_mode_set);
+
+int pox_touch_game_mode_get(void)
+{
+	if (touch_pdata && touch_pdata->touch_data && touch_pdata->touch_data->getModeValue) {
+		int val = touch_pdata->touch_data->getModeValue(Touch_Game_Mode, GET_CUR_VALUE);
+		if (val >= 0)
+			return val;
+	}
+	return s_touch_game_mode;
+}
+EXPORT_SYMBOL(pox_touch_game_mode_get);
+
+int pox_touch_sensitivity_set(int val)
+{
+	int ret = 0;
+	if (val < 0) val = 0;
+	if (val > 2) val = 2;
+	s_touch_sensitivity = val;
+	if (touch_pdata && touch_pdata->touch_data && touch_pdata->touch_data->setModeValue) {
+		ret = touch_pdata->touch_data->setModeValue(Touch_UP_THRESHOLD, s_touch_sensitivity);
+		pr_info("Touch Sensitivity set to %d (ret=%d)\n", s_touch_sensitivity, ret);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(pox_touch_sensitivity_set);
+
+int pox_touch_sensitivity_get(void)
+{
+	if (touch_pdata && touch_pdata->touch_data && touch_pdata->touch_data->getModeValue) {
+		int val = touch_pdata->touch_data->getModeValue(Touch_UP_THRESHOLD, GET_CUR_VALUE);
+		if (val >= 0)
+			return val;
+	}
+	return s_touch_sensitivity;
+}
+EXPORT_SYMBOL(pox_touch_sensitivity_get);
+
+static ssize_t touch_game_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", pox_touch_game_mode_get());
+}
+
+static ssize_t touch_game_mode_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	int val = 0;
+	if (sscanf(buf, "%d", &val) < 1)
+		return -EINVAL;
+	pox_touch_game_mode_set(val);
+	return count;
+}
+
+static ssize_t touch_sensitivity_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", pox_touch_sensitivity_get());
+}
+
+static ssize_t touch_sensitivity_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	int val = 0;
+	if (sscanf(buf, "%d", &val) < 1)
+		return -EINVAL;
+	pox_touch_sensitivity_set(val);
+	return count;
+}
+
+static DEVICE_ATTR(touch_game_mode, 0664, touch_game_mode_show, touch_game_mode_store);
+static DEVICE_ATTR(touch_sensitivity, 0664, touch_sensitivity_show, touch_sensitivity_store);
+
 static struct attribute *touch_attr_group[] = {
 	&dev_attr_palm_sensor.attr,
 	&dev_attr_p_sensor.attr,
@@ -390,6 +476,8 @@ static struct attribute *touch_attr_group[] = {
 	&dev_attr_panel_display.attr,
 	&dev_attr_panel_color.attr,
 	&dev_attr_log_debug.attr,
+	&dev_attr_touch_game_mode.attr,
+	&dev_attr_touch_sensitivity.attr,
 	NULL,
 };
 

@@ -146,4 +146,10 @@ extern int update_p_sensor_value(int value);
 
 int xiaomitouch_register_modedata(struct xiaomi_touch_interface *data);
 
+/* Pox Kernel Touch Enhancements */
+int pox_touch_game_mode_set(int enable);
+int pox_touch_game_mode_get(void);
+int pox_touch_sensitivity_set(int val);
+int pox_touch_sensitivity_get(void);
+
 #endif

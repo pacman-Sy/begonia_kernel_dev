@@ -176,6 +176,14 @@ int gaming_mode_set(int mode)
 		if (mode >= GAMING_MODE_EXTREME)
 			fbt_boost_dram(1);
 
+		/* 8. Touchscreen: Engage Hardware Touch Game Mode & Sensitivity */
+		{
+			extern int pox_touch_game_mode_set(int enable);
+			extern int pox_touch_sensitivity_set(int val);
+			pox_touch_game_mode_set(1);
+			pox_touch_sensitivity_set(1);
+		}
+
 		pr_info("Gaming Mode activated: Zero frame-drop profile engaged.\n");
 	} else {
 		pr_info("Deactivating Gaming Mode: Restoring Balanced Profile...\n");
@@ -213,6 +221,14 @@ int gaming_mode_set(int mode)
 		/* 7. Release DRAM Boost */
 		fbt_boost_dram(0);
 
+		/* 8. Restore Touchscreen Defaults */
+		{
+			extern int pox_touch_game_mode_set(int enable);
+			extern int pox_touch_sensitivity_set(int val);
+			pox_touch_game_mode_set(0);
+			pox_touch_sensitivity_set(0);
+		}
+
 		pr_info("Gaming Mode deactivated: Balanced Profile restored.\n");
 	}
 
@@ -227,6 +243,12 @@ int gaming_mode_get(void)
 	return gaming_mode_state;
 }
 EXPORT_SYMBOL(gaming_mode_get);
+
+int pox_gaming_mode_get(void)
+{
+	return gaming_mode_state;
+}
+EXPORT_SYMBOL(pox_gaming_mode_get);
 
 /* ------------------ ProcFS Interfaces ------------------ */
 
@@ -611,6 +633,233 @@ static ssize_t slog3_sysfs_store(struct kobject *kobj,
 static struct kobj_attribute slog3_kobj_attr =
 	__ATTR(slog3, 0664, slog3_sysfs_show, slog3_sysfs_store);
 
+/* Battery Protection Rootless ProcFS Interfaces */
+extern int pox_battery_bypass_get(void);
+extern void pox_battery_bypass_set(int enable);
+extern int pox_battery_limit_get(void);
+extern void pox_battery_limit_set(int limit);
+extern int pox_battery_status_get(char *buf, size_t size);
+
+static int battery_bypass_proc_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", pox_battery_bypass_get());
+	return 0;
+}
+
+static int battery_bypass_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, battery_bypass_proc_show, NULL);
+}
+
+static ssize_t battery_bypass_proc_write(struct file *file, const char __user *buffer,
+					 size_t count, loff_t *pos)
+{
+	char buf[16];
+	int val;
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, buffer, count))
+		return -EFAULT;
+	buf[count] = '\0';
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	pox_battery_bypass_set(val);
+	return count;
+}
+
+static const struct file_operations battery_bypass_proc_fops = {
+	.open    = battery_bypass_proc_open,
+	.read    = seq_read,
+	.write   = battery_bypass_proc_write,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
+static int battery_limit_proc_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", pox_battery_limit_get());
+	return 0;
+}
+
+static int battery_limit_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, battery_limit_proc_show, NULL);
+}
+
+static ssize_t battery_limit_proc_write(struct file *file, const char __user *buffer,
+					size_t count, loff_t *pos)
+{
+	char buf[16];
+	int val;
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, buffer, count))
+		return -EFAULT;
+	buf[count] = '\0';
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	pox_battery_limit_set(val);
+	return count;
+}
+
+static const struct file_operations battery_limit_proc_fops = {
+	.open    = battery_limit_proc_open,
+	.read    = seq_read,
+	.write   = battery_limit_proc_write,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
+static int battery_status_proc_show(struct seq_file *m, void *v)
+{
+	char buf[128];
+	pox_battery_status_get(buf, sizeof(buf));
+	seq_printf(m, "%s", buf);
+	return 0;
+}
+
+static int battery_status_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, battery_status_proc_show, NULL);
+}
+
+static const struct file_operations battery_status_proc_fops = {
+	.open    = battery_status_proc_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
+/* Touchscreen Hardware Mode & Sensitivity Interfaces */
+extern int pox_touch_game_mode_get(void);
+extern int pox_touch_game_mode_set(int enable);
+extern int pox_touch_sensitivity_get(void);
+extern int pox_touch_sensitivity_set(int val);
+
+static int touch_game_mode_proc_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", pox_touch_game_mode_get());
+	return 0;
+}
+
+static int touch_game_mode_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, touch_game_mode_proc_show, NULL);
+}
+
+static ssize_t touch_game_mode_proc_write(struct file *file, const char __user *buffer,
+					  size_t count, loff_t *pos)
+{
+	char buf[16];
+	int val;
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, buffer, count))
+		return -EFAULT;
+	buf[count] = '\0';
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	pox_touch_game_mode_set(val);
+	return count;
+}
+
+static const struct file_operations touch_game_mode_proc_fops = {
+	.open    = touch_game_mode_proc_open,
+	.read    = seq_read,
+	.write   = touch_game_mode_proc_write,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
+static int touch_sensitivity_proc_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", pox_touch_sensitivity_get());
+	return 0;
+}
+
+static int touch_sensitivity_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, touch_sensitivity_proc_show, NULL);
+}
+
+static ssize_t touch_sensitivity_proc_write(struct file *file, const char __user *buffer,
+					    size_t count, loff_t *pos)
+{
+	char buf[16];
+	int val;
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, buffer, count))
+		return -EFAULT;
+	buf[count] = '\0';
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	pox_touch_sensitivity_set(val);
+	return count;
+}
+
+static const struct file_operations touch_sensitivity_proc_fops = {
+	.open    = touch_sensitivity_proc_open,
+	.read    = seq_read,
+	.write   = touch_sensitivity_proc_write,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
+/* Audio Sound Control Headphone Gain Interface */
+extern int pox_headphone_gain_get(void);
+extern int pox_headphone_gain_set(int val);
+
+static int headphone_gain_proc_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", pox_headphone_gain_get());
+	return 0;
+}
+
+static int headphone_gain_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, headphone_gain_proc_show, NULL);
+}
+
+static ssize_t headphone_gain_proc_write(struct file *file, const char __user *buffer,
+					 size_t count, loff_t *pos)
+{
+	char buf[16];
+	int val;
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, buffer, count))
+		return -EFAULT;
+	buf[count] = '\0';
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	pox_headphone_gain_set(val);
+	return count;
+}
+
+static const struct file_operations headphone_gain_proc_fops = {
+	.open    = headphone_gain_proc_open,
+	.read    = seq_read,
+	.write   = headphone_gain_proc_write,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
 /* ------------------ Init Function ------------------ */
 
 int init_gaming_mode(struct proc_dir_entry *parent)
@@ -644,6 +893,30 @@ int init_gaming_mode(struct proc_dir_entry *parent)
 	entry = proc_create("slog3", 0666, parent, &slog3_proc_fops);
 	if (!entry)
 		pr_warn("Failed to create /proc/perfmgr/slog3\n");
+
+	entry = proc_create("battery_bypass", 0666, parent, &battery_bypass_proc_fops);
+	if (!entry)
+		pr_warn("Failed to create /proc/perfmgr/battery_bypass\n");
+
+	entry = proc_create("battery_limit", 0666, parent, &battery_limit_proc_fops);
+	if (!entry)
+		pr_warn("Failed to create /proc/perfmgr/battery_limit\n");
+
+	entry = proc_create("battery_status", 0444, parent, &battery_status_proc_fops);
+	if (!entry)
+		pr_warn("Failed to create /proc/perfmgr/battery_status\n");
+
+	entry = proc_create("touch_game_mode", 0666, parent, &touch_game_mode_proc_fops);
+	if (!entry)
+		pr_warn("Failed to create /proc/perfmgr/touch_game_mode\n");
+
+	entry = proc_create("touch_sensitivity", 0666, parent, &touch_sensitivity_proc_fops);
+	if (!entry)
+		pr_warn("Failed to create /proc/perfmgr/touch_sensitivity\n");
+
+	entry = proc_create("headphone_gain", 0666, parent, &headphone_gain_proc_fops);
+	if (!entry)
+		pr_warn("Failed to create /proc/perfmgr/headphone_gain\n");
 
 	ret = sysfs_create_file(kernel_kobj, &gaming_mode_kobj_attr.attr);
 	if (ret)

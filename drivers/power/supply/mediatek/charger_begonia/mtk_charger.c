@@ -3476,6 +3476,50 @@ static ssize_t battery_protect_status_show(struct kobject *kobj, struct kobj_att
 	return sprintf(buf, "CHARGING (FAST/NORMAL)\n");
 }
 
+int pox_battery_bypass_get(void)
+{
+	return g_battery_bypass_mode;
+}
+EXPORT_SYMBOL(pox_battery_bypass_get);
+
+void pox_battery_bypass_set(int enable)
+{
+	g_battery_bypass_mode = enable ? 1 : 0;
+	if (pinfo)
+		_wake_up_charger(pinfo);
+}
+EXPORT_SYMBOL(pox_battery_bypass_set);
+
+int pox_battery_limit_get(void)
+{
+	return g_battery_charge_limit;
+}
+EXPORT_SYMBOL(pox_battery_limit_get);
+
+void pox_battery_limit_set(int limit)
+{
+	if (limit < 50) limit = 50;
+	if (limit > 100) limit = 100;
+	g_battery_charge_limit = limit;
+	if (pinfo)
+		_wake_up_charger(pinfo);
+}
+EXPORT_SYMBOL(pox_battery_limit_set);
+
+int pox_battery_status_get(char *buf, size_t size)
+{
+	if (!pinfo || !mtk_chg_check_vbus(pinfo))
+		return scnprintf(buf, size, "DISCHARGING (ON BATTERY)\n");
+	if (g_battery_bypass_reason == 1)
+		return scnprintf(buf, size, "BYPASS_MODE (RUNNING 100%% ON CHARGER, BATTERY IDLE)\n");
+	if (g_battery_bypass_reason == 2)
+		return scnprintf(buf, size, "CHARGE_LIMIT_REACHED (RUNNING ON CHARGER, CAP %d%%)\n", g_battery_charge_limit);
+	if (g_battery_bypass_reason == 3)
+		return scnprintf(buf, size, "THERMAL_GUARD_ACTIVE (RUNNING ON CHARGER, TEMP >= %dC)\n", g_battery_temp_limit / 10);
+	return scnprintf(buf, size, "CHARGING (FAST/NORMAL)\n");
+}
+EXPORT_SYMBOL(pox_battery_status_get);
+
 static ssize_t battery_protect_soc_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", battery_get_uisoc());

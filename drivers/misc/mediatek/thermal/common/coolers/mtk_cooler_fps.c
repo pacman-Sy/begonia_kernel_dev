@@ -314,6 +314,13 @@ static void mtk_cl_fps_set_fps_limit(void)
 		min_param = cl_adp_fps_limit;
 #endif
 
+	/* Pox Onyx Gaming Mode: enforce 60 FPS floor to prevent thermal game stutters */
+	{
+		extern int pox_gaming_mode_get(void);
+		if (pox_gaming_mode_get() > 0 && min_param < 60)
+			min_param = 60;
+	}
+
 	if (min_param != cl_fps_cur_limit) {
 		cl_fps_cur_limit = min_param;
 #if FPS_COOLER_USE_DFPS
