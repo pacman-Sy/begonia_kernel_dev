@@ -63,7 +63,12 @@ static enum ddr_opp __remap_to_opp(enum HRT_LEVEL hrt)
 
 	switch (hrt) {
 	case HRT_LEVEL_LEVEL0:
-		opp = DDR_OPP_4; /* LP4-1200 */
+		/*
+		 * Pox Video & Display Fluidity: Elevate HRT_LEVEL0 floor from
+		 * DDR_OPP_4 (1200MHz) to DDR_OPP_2 (2100MHz) to guarantee ample
+		 * memory bandwidth for hardware video decoding + display overlay.
+		 */
+		opp = DDR_OPP_2; /* LP4-2100 (elevated floor) */
 		break;
 	case HRT_LEVEL_LEVEL1:
 		opp = DDR_OPP_2; /* LP4-2100 */

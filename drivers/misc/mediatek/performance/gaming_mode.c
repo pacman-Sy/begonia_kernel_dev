@@ -35,9 +35,23 @@ extern void ged_dvfs_set_gaming_boost(int enable);
 extern void eara_pass_perf_first_hint(int enable);
 extern int boost_write_for_perf_idx(int idx, int boost_value);
 extern int prefer_idle_for_perf_idx(int idx, int prefer_idle);
+extern int set_ios_color_mode(int mode);
+extern int get_ios_color_mode(void);
 
 static int gaming_mode_state = GAMING_MODE_DISABLED;
 static DEFINE_MUTEX(gaming_mode_lock);
+
+int color_mode_set(int mode)
+{
+	return set_ios_color_mode(mode);
+}
+EXPORT_SYMBOL(color_mode_set);
+
+int color_mode_get(void)
+{
+	return get_ios_color_mode();
+}
+EXPORT_SYMBOL(color_mode_get);
 
 int gaming_mode_set(int mode)
 {
@@ -71,11 +85,16 @@ int gaming_mode_set(int mode)
 		/* 4. PPM COBRA Performance-First CPU Budgeting */
 		eara_pass_perf_first_hint(1);
 
-		/* 5. SchedTune Top-App & Prefer Idle */
-		boost_write_for_perf_idx(3, 15);   /* Top-app boost = 15% */
-		prefer_idle_for_perf_idx(3, 1);   /* Top-app prefers idle big cores */
+		/* 5. iOS-Style SchedTune QoS: Prioritize Top-App & Foreground */
+		boost_write_for_perf_idx(3, 20);   /* Top-app (Render/Game) boost = 20% */
+		prefer_idle_for_perf_idx(3, 1);    /* Top-app prefers idle Cortex-A76 cores */
+		boost_write_for_perf_idx(1, 5);    /* Foreground boost = 5% */
+		prefer_idle_for_perf_idx(1, 1);
 
-		/* 6. Extreme Mode: Lock DRAM to Max OPP 0 */
+		/* 6. Display Engine: Engage iOS Vivid Gaming Cinema HDR profile */
+		set_ios_color_mode(COLOR_MODE_VIVID);
+
+		/* 7. Extreme Mode: Lock DRAM to Max OPP 0 (2133MHz) */
 		if (mode >= GAMING_MODE_EXTREME)
 			fbt_boost_dram(1);
 
@@ -103,11 +122,16 @@ int gaming_mode_set(int mode)
 		/* 4. Restore PPM COBRA Defaults */
 		eara_pass_perf_first_hint(0);
 
-		/* 5. Restore SchedTune Top-App */
-		boost_write_for_perf_idx(3, 1);
+		/* 5. Restore Balanced SchedTune QoS */
+		boost_write_for_perf_idx(3, 5);
 		prefer_idle_for_perf_idx(3, 1);
+		boost_write_for_perf_idx(1, 0);
+		prefer_idle_for_perf_idx(1, 0);
 
-		/* 6. Release DRAM Boost */
+		/* 6. Display Engine: Restore iOS TrueColor Reference (Calibrated D65) */
+		set_ios_color_mode(COLOR_MODE_REFERENCE);
+
+		/* 7. Release DRAM Boost */
 		fbt_boost_dram(0);
 
 		pr_info("Gaming Mode deactivated: Balanced Profile restored.\n");
@@ -125,11 +149,12 @@ int gaming_mode_get(void)
 }
 EXPORT_SYMBOL(gaming_mode_get);
 
-/* ------------------ ProcFS Interface ------------------ */
+/* ------------------ ProcFS Interfaces ------------------ */
 
 static int gaming_mode_proc_show(struct seq_file *m, void *v)
 {
 	int state = gaming_mode_get();
+	int color_st = get_ios_color_mode();
 
 	seq_printf(m, "gaming_mode: %d\n", state);
 	if (state == GAMING_MODE_EXTREME)
@@ -137,7 +162,7 @@ static int gaming_mode_proc_show(struct seq_file *m, void *v)
 	else if (state == GAMING_MODE_ENABLED)
 		seq_printf(m, "status: GAMING MODE ACTIVE (Zero Frame Drops Enabled)\n");
 	else
-		seq_printf(m, "status: BALANCED PROFILE (Battery Conscious)\n");
+		seq_printf(m, "status: BALANCED PROFILE (iOS Fluidity & Real Colors Active)\n");
 
 	seq_printf(m, "features:\n");
 	seq_printf(m, "  - ultra_rescue: %s\n", state ? "enabled (DRAM boost on hitch)" : "disabled");
@@ -149,8 +174,13 @@ static int gaming_mode_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "  - gpu_touch_boost: %s\n", state ? "enabled" : "disabled");
 	seq_printf(m, "  - gpu_dvfs_margin: %s\n", state ? "+20% (PERF)" : "default");
 	seq_printf(m, "  - ppm_cobra_budget: %s\n", state ? "Performance-First (A76 prioritized)" : "Balanced");
-	seq_printf(m, "  - top_app_boost: %d%%\n", state ? 15 : 1);
+	seq_printf(m, "  - top_app_boost: %d%%\n", state ? 20 : 5);
 	seq_printf(m, "  - top_app_prefer_idle: enabled\n");
+	seq_printf(m, "  - color_mode: %d (%s)\n", color_st,
+		(color_st == COLOR_MODE_VIVID) ? "iOS Vivid / Gaming Cinema" :
+		(color_st == COLOR_MODE_REFERENCE) ? "iOS TrueColor Reference (Calibrated D65)" : "Standard Neutral");
+	seq_printf(m, "  - video_clock_floor: active (anti-lag enabled)\n");
+	seq_printf(m, "  - display_ddr_floor: LP4-2100 minimum\n");
 	return 0;
 }
 
@@ -205,7 +235,62 @@ static const struct file_operations gaming_mode_proc_fops = {
 	.release = single_release,
 };
 
-/* ------------------ SysFS Interface ------------------ */
+static int color_mode_proc_show(struct seq_file *m, void *v)
+{
+	int mode = get_ios_color_mode();
+
+	seq_printf(m, "color_mode: %d\n", mode);
+	if (mode == COLOR_MODE_VIVID)
+		seq_printf(m, "status: iOS Vivid / Gaming Cinema (Enhanced HDR for Games & Movies)\n");
+	else if (mode == COLOR_MODE_REFERENCE)
+		seq_printf(m, "status: iOS TrueColor Reference (Calibrated D65 Liquid Retina)\n");
+	else
+		seq_printf(m, "status: Standard Neutral\n");
+	return 0;
+}
+
+static ssize_t color_mode_proc_write(struct file *file, const char __user *ubuf,
+				     size_t count, loff_t *ppos)
+{
+	char buf[16];
+	int val = 0;
+	size_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+
+	while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r' || isspace(buf[len - 1])))
+		buf[--len] = '\0';
+
+	if (kstrtoint(buf, 10, &val) < 0)
+		return -EINVAL;
+
+	if (val < 0)
+		val = 0;
+	else if (val > 2)
+		val = 2;
+
+	set_ios_color_mode(val);
+	return count;
+}
+
+static int color_mode_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, color_mode_proc_show, NULL);
+}
+
+static const struct file_operations color_mode_proc_fops = {
+	.owner   = THIS_MODULE,
+	.open    = color_mode_proc_open,
+	.read    = seq_read,
+	.write   = color_mode_proc_write,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
+/* ------------------ SysFS Interfaces ------------------ */
 
 static ssize_t gaming_mode_sysfs_show(struct kobject *kobj,
 				      struct kobj_attribute *attr, char *buf)
@@ -234,6 +319,33 @@ static ssize_t gaming_mode_sysfs_store(struct kobject *kobj,
 static struct kobj_attribute gaming_mode_kobj_attr =
 	__ATTR(gaming_mode, 0664, gaming_mode_sysfs_show, gaming_mode_sysfs_store);
 
+static ssize_t color_mode_sysfs_show(struct kobject *kobj,
+				     struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", get_ios_color_mode());
+}
+
+static ssize_t color_mode_sysfs_store(struct kobject *kobj,
+				      struct kobj_attribute *attr,
+				      const char *buf, size_t count)
+{
+	int val = 0;
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	if (val < 0)
+		val = 0;
+	else if (val > 2)
+		val = 2;
+
+	set_ios_color_mode(val);
+	return count;
+}
+
+static struct kobj_attribute color_mode_kobj_attr =
+	__ATTR(color_mode, 0664, color_mode_sysfs_show, color_mode_sysfs_store);
+
 /* ------------------ Init Function ------------------ */
 
 int init_gaming_mode(struct proc_dir_entry *parent)
@@ -250,12 +362,25 @@ int init_gaming_mode(struct proc_dir_entry *parent)
 		return -ENOMEM;
 	}
 
+	entry = proc_create("color_mode", 0664, parent, &color_mode_proc_fops);
+	if (!entry)
+		pr_warn("Failed to create /proc/perfmgr/color_mode\n");
+
 	ret = sysfs_create_file(kernel_kobj, &gaming_mode_kobj_attr.attr);
 	if (ret)
 		pr_warn("Failed to create /sys/kernel/gaming_mode (ret=%d)\n", ret);
 	else
 		pr_info("/sys/kernel/gaming_mode created successfully\n");
 
-	pr_info("Gaming Mode subsystem initialized successfully.\n");
+	ret = sysfs_create_file(kernel_kobj, &color_mode_kobj_attr.attr);
+	if (ret)
+		pr_warn("Failed to create /sys/kernel/color_mode (ret=%d)\n", ret);
+	else
+		pr_info("/sys/kernel/color_mode created successfully\n");
+
+	/* Initialize to iOS TrueColor Reference (Calibrated D65) */
+	set_ios_color_mode(COLOR_MODE_REFERENCE);
+
+	pr_info("Gaming Mode & iOS Display Subsystem initialized successfully.\n");
 	return 0;
 }

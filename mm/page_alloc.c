@@ -345,11 +345,11 @@ compound_page_dtor * const compound_page_dtors[] = {
 int min_free_kbytes = 1024;
 int user_min_free_kbytes = -1;
 /*
- * iOS-style proactive on-demand compression: 1.5% RAM buffer between low
+ * iOS-style proactive on-demand compression: 2.0% RAM buffer between low
  * and min watermarks ensures kswapd compresses pages in the background
  * without blocking foreground UI threads in direct reclaim.
  */
-int watermark_scale_factor = 150;
+int watermark_scale_factor = 200;
 
 /*
  * Extra memory for the system to try freeing. Used to temporarily

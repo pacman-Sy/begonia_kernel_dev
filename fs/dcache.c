@@ -82,11 +82,11 @@
  *     dentry2->d_lock
  */
 /*
- * iOS-style metadata retention: keep directory and inode caches in RAM (60)
+ * iOS-style metadata retention: keep directory and inode caches in RAM (50)
  * rather than aggressively evicting them, preventing UI micro-stutters
  * when browsing files, apps, or media databases.
  */
-int sysctl_vfs_cache_pressure __read_mostly = 60;
+int sysctl_vfs_cache_pressure __read_mostly = 50;
 EXPORT_SYMBOL_GPL(sysctl_vfs_cache_pressure);
 
 __cacheline_aligned_in_smp DEFINE_SEQLOCK(rename_lock);

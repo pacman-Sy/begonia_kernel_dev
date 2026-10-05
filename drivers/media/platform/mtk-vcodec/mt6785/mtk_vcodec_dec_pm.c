@@ -330,7 +330,19 @@ void mtk_vdec_dvfs_end(struct mtk_vcodec_ctx *ctx)
 		/* print error log */
 	}
 
-	freq_idx = (vdec_freq_step_size == 0) ? 0 : (vdec_freq_step_size - 1);
+	/*
+	 * Pox Video Lag Fix: Do not collapse VDEC clock to minimum idle step
+	 * between consecutive video frames during an active playback session.
+	 * If more jobs are queued or session history is active, maintain a warm
+	 * performance frequency floor to prevent decode ramp delays and frame drops.
+	 */
+	if (vdec_jobs != NULL) {
+		freq_idx = 0; /* Next frame already waiting: hold peak clock */
+	} else if (vdec_hists != NULL && vdec_freq_step_size > 1) {
+		freq_idx = (vdec_freq_step_size > 2) ? 1 : 0; /* Active session floor */
+	} else {
+		freq_idx = (vdec_freq_step_size == 0) ? 0 : (vdec_freq_step_size - 1);
+	}
 	pm_qos_update_request(&vdec_qos_req_f, vdec_freq_steps[freq_idx]);
 	mutex_unlock(&ctx->dev->dec_dvfs_mutex);
 #endif

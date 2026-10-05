@@ -324,7 +324,17 @@ void mtk_venc_dvfs_end(struct mtk_vcodec_ctx *ctx)
 		pr_debug("no job at venc_dvfs_end, reset freq only");
 	}
 
-	freq_idx = (venc_freq_step_size == 0) ? 0 : (venc_freq_step_size - 1);
+	/*
+	 * Pox Video Lag Fix: Do not collapse VENC clock to minimum idle step
+	 * between consecutive frames during an active video encoding/recording session.
+	 */
+	if (venc_jobs != NULL) {
+		freq_idx = 0; /* Next frame already waiting: hold peak clock */
+	} else if (venc_hists != NULL && venc_freq_step_size > 1) {
+		freq_idx = (venc_freq_step_size > 2) ? 1 : 0; /* Active session floor */
+	} else {
+		freq_idx = (venc_freq_step_size == 0) ? 0 : (venc_freq_step_size - 1);
+	}
 	pm_qos_update_request(&venc_qos_req_f, venc_freq_steps[freq_idx]);
 	mutex_unlock(&ctx->dev->enc_dvfs_mutex);
 #endif

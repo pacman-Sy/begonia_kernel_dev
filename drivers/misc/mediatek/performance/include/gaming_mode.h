@@ -13,8 +13,14 @@
 #define GAMING_MODE_ENABLED  1
 #define GAMING_MODE_EXTREME  2
 
+#define COLOR_MODE_STANDARD  0
+#define COLOR_MODE_REFERENCE 1
+#define COLOR_MODE_VIVID     2
+
 int gaming_mode_set(int mode);
 int gaming_mode_get(void);
+int color_mode_set(int mode);
+int color_mode_get(void);
 int init_gaming_mode(struct proc_dir_entry *parent);
 
 #endif /* _GAMING_MODE_H_ */
