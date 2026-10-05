@@ -534,7 +534,7 @@ static ssize_t gaming_mode_sysfs_store(struct kobject *kobj,
 }
 
 static struct kobj_attribute gaming_mode_kobj_attr =
-	__ATTR(gaming_mode, 0666, gaming_mode_sysfs_show, gaming_mode_sysfs_store);
+	__ATTR(gaming_mode, 0664, gaming_mode_sysfs_show, gaming_mode_sysfs_store);
 
 static ssize_t color_mode_sysfs_show(struct kobject *kobj,
 				     struct kobj_attribute *attr, char *buf)
@@ -562,10 +562,10 @@ static ssize_t color_mode_sysfs_store(struct kobject *kobj,
 }
 
 static struct kobj_attribute color_mode_kobj_attr =
-	__ATTR(color_mode, 0666, color_mode_sysfs_show, color_mode_sysfs_store);
+	__ATTR(color_mode, 0664, color_mode_sysfs_show, color_mode_sysfs_store);
 
 static struct kobj_attribute camera_profile_kobj_attr =
-	__ATTR(camera_profile, 0666, color_mode_sysfs_show, color_mode_sysfs_store);
+	__ATTR(camera_profile, 0664, color_mode_sysfs_show, color_mode_sysfs_store);
 
 static ssize_t camera_4k60_sysfs_show(struct kobject *kobj,
 				      struct kobj_attribute *attr, char *buf)
@@ -587,7 +587,7 @@ static ssize_t camera_4k60_sysfs_store(struct kobject *kobj,
 }
 
 static struct kobj_attribute camera_4k60_kobj_attr =
-	__ATTR(camera_4k60, 0666, camera_4k60_sysfs_show, camera_4k60_sysfs_store);
+	__ATTR(camera_4k60, 0664, camera_4k60_sysfs_show, camera_4k60_sysfs_store);
 
 static ssize_t slog3_sysfs_show(struct kobject *kobj,
 				struct kobj_attribute *attr, char *buf)
@@ -609,7 +609,7 @@ static ssize_t slog3_sysfs_store(struct kobject *kobj,
 }
 
 static struct kobj_attribute slog3_kobj_attr =
-	__ATTR(slog3, 0666, slog3_sysfs_show, slog3_sysfs_store);
+	__ATTR(slog3, 0664, slog3_sysfs_show, slog3_sysfs_store);
 
 /* ------------------ Init Function ------------------ */
 
