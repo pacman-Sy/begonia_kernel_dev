@@ -51,6 +51,8 @@
 #include "imgsensor_sensor_list.h"
 #include "s5kgw1sunnymipiraw_Sensor.h"
 
+extern int camera_4k60_get(void);
+
 #define MULTI_WRITE 1
 
 #define MaxAnalogGain 32
@@ -14787,7 +14789,7 @@ static kal_uint32 normal_video(
 
 	spin_lock(&imgsensor_drv_lock);
 	imgsensor.sensor_mode = IMGSENSOR_MODE_VIDEO;
-	if (imgsensor.current_fps >= 590) {
+	if (imgsensor.current_fps >= 590 || camera_4k60_get() > 0) {
 		/* 4K 60fps recording mode: switch to custom3 60fps hardware timing registers */
 		imgsensor.pclk = imgsensor_info.custom3.pclk;
 		imgsensor.line_length = imgsensor_info.custom3.linelength;
@@ -14927,7 +14929,7 @@ static kal_uint32 custom3(
 	imgsensor.min_frame_length = imgsensor_info.custom3.framelength;
 	imgsensor.dummy_line = 0;
 	imgsensor.dummy_pixel = 0;
-	/* imgsensor.current_fps = 600; */
+	imgsensor.current_fps = 600;
 	imgsensor.autoflicker_en = KAL_FALSE;
 	spin_unlock(&imgsensor_drv_lock);
 	custom3_setting();
@@ -15305,7 +15307,8 @@ enum MSDK_SCENARIO_ID_ENUM scenario_id, MUINT32 framerate)
 	case MSDK_SCENARIO_ID_VIDEO_PREVIEW:
 		if (framerate == 0)
 			return ERROR_NONE;
-		if (framerate >= 590) {
+		imgsensor.current_fps = framerate;
+		if (framerate >= 590 || camera_4k60_get() > 0) {
 			frame_length = imgsensor_info.custom3.pclk
 			    / framerate * 10 / imgsensor_info.custom3.linelength;
 

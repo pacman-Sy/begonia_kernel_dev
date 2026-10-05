@@ -22,6 +22,11 @@ int gaming_mode_set(int mode);
 int gaming_mode_get(void);
 int color_mode_set(int mode);
 int color_mode_get(void);
+int camera_4k60_set(int force);
+int camera_4k60_get(void);
+int camera_slog3_set(int enable);
+int camera_slog3_get(void);
+void pox_camera_launch_boost(int enable);
 int init_gaming_mode(struct proc_dir_entry *parent);
 
 #endif /* _GAMING_MODE_H_ */

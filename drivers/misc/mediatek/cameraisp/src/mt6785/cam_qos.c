@@ -559,7 +559,9 @@ int ISP_SetPMQOS(
 		break;
 	case E_CLK_ADD:
 		mtk_dfs_add();
-		LOG_DBG("DFS_add\n");
+		target_clk = 560;
+		mtk_dfs_update(target_clk);
+		LOG_DBG("DFS_add: primed to peak 560MHz\n");
 		break;
 	case E_CLK_REMOVE:
 		mtk_dfs_remove();
@@ -572,8 +574,16 @@ int ISP_SetPMQOS(
 	case E_CLK_UPDATE:
 		mtk_dfs_set();
 		target_clk = *(u32 *)pvalue;
+		/*
+		 * Pox Zero-Frame-Drop ISP QoS Floor:
+		 * Clamp target clock floor to 560MHz (cam_step0 peak ISP frequency).
+		 * This prevents ISP DFS from down-throttling to 315MHz or 416MHz during
+		 * 4K/60fps video capture or heavy camera pipelines, preventing dropped frames.
+		 */
+		if (target_clk > 0 && target_clk < 560)
+			target_clk = 560;
 		mtk_dfs_update(target_clk);
-		LOG_DBG("DFS Set clock :%d", *pvalue);
+		LOG_DBG("DFS Set clock :%d (clamped: %d)\n", *pvalue, target_clk);
 		break;
 	case E_CLK_SUPPORTED:
 		{

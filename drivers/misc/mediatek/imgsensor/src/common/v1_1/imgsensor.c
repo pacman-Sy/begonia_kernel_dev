@@ -61,6 +61,7 @@ static DEFINE_MUTEX(gimgsensor_mutex);
 static DEFINE_MUTEX(gimgsensor_open_mutex);
 
 struct IMGSENSOR gimgsensor;
+extern void pox_camera_launch_boost(int enable);
 
 /******************************************************************************
  * Profiling
@@ -2094,6 +2095,9 @@ static int imgsensor_open(struct inode *a_pstInode, struct file *a_pstFile)
 		atomic_read(&pimgsensor->imgsensor_open_cnt));
 
 	mutex_unlock(&gimgsensor_open_mutex);
+
+	/* Pox Camera Subsystem: instantaneous viewfinder launch boost */
+	pox_camera_launch_boost(1);
 	return 0;
 }
 
@@ -2121,7 +2125,8 @@ static int imgsensor_release(struct inode *a_pstInode, struct file *a_pstFile)
 		imgsensor_release_secure_flag();/* to reset sensor status */
 		imgsensor_ca_release();
 #endif
-
+		/* Pox Camera Subsystem: release launch QoS boost */
+		pox_camera_launch_boost(0);
 	}
 
 	PK_DBG("%s %d\n", __func__,
