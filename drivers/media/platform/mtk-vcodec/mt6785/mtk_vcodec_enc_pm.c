@@ -325,10 +325,16 @@ void mtk_venc_dvfs_end(struct mtk_vcodec_ctx *ctx)
 	}
 
 	/*
-	 * Pox Video Lag Fix: Do not collapse VENC clock to minimum idle step
-	 * between consecutive frames during an active video encoding/recording session.
+	 * Pox 4K60 & Video Anti-Lag: Lock VENC to peak clock (freq_idx = 0)
+	 * during 4K (3840x2160) or 60fps recording sessions to guarantee zero frame drops.
 	 */
-	if (venc_jobs != NULL) {
+	if ((ctx->q_data[MTK_Q_DATA_SRC].visible_width == 3840 &&
+	     ctx->q_data[MTK_Q_DATA_SRC].visible_height == 2160) ||
+	    ctx->enc_params.operationrate >= 59 ||
+	    (ctx->enc_params.framerate_denom > 0 &&
+	     (ctx->enc_params.framerate_num / ctx->enc_params.framerate_denom) >= 59)) {
+		freq_idx = 0; /* Always lock peak clock for 4K / 60fps recording */
+	} else if (venc_jobs != NULL) {
 		freq_idx = 0; /* Next frame already waiting: hold peak clock */
 	} else if (venc_hists != NULL && venc_freq_step_size > 1) {
 		freq_idx = (venc_freq_step_size > 2) ? 1 : 0; /* Active session floor */

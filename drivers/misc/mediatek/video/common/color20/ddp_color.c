@@ -109,11 +109,25 @@ static struct DISP_PQ_PARAM g_Color_Param[2] = {
 	}
 };
 
+static struct DISP_PQ_PARAM g_Color_Cam_Param = {
+u4SHPGain:0,
+u4SatGain:4,
+u4PartialY:0,
+u4HueAdj:{9, 9, 9, 9},
+u4SatAdj:{0, 0, 0, 0},
+u4Contrast:4,
+u4Brightness:4,
+u4Ccorr:2,
+#if defined(COLOR_3_0)
+u4ColorLUT:0
+#endif
+};
+
 static int current_ios_color_mode = 1; /* Default: 1 = iOS TrueColor Reference */
 
 int set_ios_color_mode(int mode)
 {
-	if (mode < 0 || mode > 2)
+	if (mode < 0 || mode > 3)
 		return -EINVAL;
 
 	current_ios_color_mode = mode;
@@ -148,6 +162,22 @@ int set_ios_color_mode(int mode)
 		g_Color_Param[0].u4SatAdj[1] = 2;
 		g_Color_Param[0].u4SatAdj[2] = 3;
 		g_Color_Param[0].u4SatAdj[3] = 3;
+	} else if (mode == 3) {
+		/* Mode 3: Sony S-Log3 / Cinema Flat Profile (Logarithmic Dynamic Range for LUT Grading) */
+		g_Color_Param[0].u4SHPGain = 0;       /* No digital artificial edge sharpening, organic texture */
+		g_Color_Param[0].u4SatGain = 2;       /* Flat neutral saturation for wide-gamut log */
+		g_Color_Param[0].u4Contrast = 1;      /* Flat contrast curve, lifted shadow floor, no highlight clipping */
+		g_Color_Param[0].u4Brightness = 5;    /* Lifted exposure latitude */
+		g_Color_Param[0].u4SatAdj[0] = 0;
+		g_Color_Param[0].u4SatAdj[1] = 0;     /* True neutral skin tone */
+		g_Color_Param[0].u4SatAdj[2] = 0;
+		g_Color_Param[0].u4SatAdj[3] = 0;
+
+		/* Configure camera PQ param for flat logarithmic preview */
+		g_Color_Cam_Param.u4SHPGain = 0;
+		g_Color_Cam_Param.u4SatGain = 2;
+		g_Color_Cam_Param.u4Contrast = 1;
+		g_Color_Cam_Param.u4Brightness = 5;
 	}
 
 	g_Color_Param[1] = g_Color_Param[0];
@@ -160,20 +190,6 @@ int get_ios_color_mode(void)
 	return current_ios_color_mode;
 }
 EXPORT_SYMBOL(get_ios_color_mode);
-
-static struct DISP_PQ_PARAM g_Color_Cam_Param = {
-u4SHPGain:0,
-u4SatGain:4,
-u4PartialY:0,
-u4HueAdj:{9, 9, 9, 9},
-u4SatAdj:{0, 0, 0, 0},
-u4Contrast:4,
-u4Brightness:4,
-u4Ccorr:2,
-#if defined(COLOR_3_0)
-u4ColorLUT:0
-#endif
-};
 
 static struct DISP_PQ_PARAM g_Color_Gal_Param = {
 u4SHPGain:2,

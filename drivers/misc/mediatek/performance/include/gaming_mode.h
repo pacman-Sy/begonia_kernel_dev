@@ -16,6 +16,7 @@
 #define COLOR_MODE_STANDARD  0
 #define COLOR_MODE_REFERENCE 1
 #define COLOR_MODE_VIVID     2
+#define COLOR_MODE_SLOG3     3
 
 int gaming_mode_set(int mode);
 int gaming_mode_get(void);

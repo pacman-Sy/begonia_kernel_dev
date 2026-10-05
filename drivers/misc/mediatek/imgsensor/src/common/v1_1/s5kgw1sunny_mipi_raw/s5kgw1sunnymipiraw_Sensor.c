@@ -137,7 +137,7 @@ static struct imgsensor_info_struct imgsensor_info = {
 		.grabwindow_height = 3472, /*//0x0D90*/
 		//grabwindow_height should be 16's N times
 		.mipi_data_lp2hs_settle_dc = 0x22,/*// cphy  need to confirm from HQ*/
-		.max_framerate = 300,
+		.max_framerate = 600, /* 60.0 FPS support for 4K video */
 		.mipi_pixel_rate = 823000000,
 		.gw1_binning_mode = 2,
 	},
@@ -14787,15 +14787,26 @@ static kal_uint32 normal_video(
 
 	spin_lock(&imgsensor_drv_lock);
 	imgsensor.sensor_mode = IMGSENSOR_MODE_VIDEO;
-	imgsensor.pclk = imgsensor_info.normal_video.pclk;
-	imgsensor.line_length = imgsensor_info.normal_video.linelength;
-	imgsensor.frame_length = imgsensor_info.normal_video.framelength;
-	imgsensor.gw1_binning_mode = imgsensor_info.normal_video.gw1_binning_mode;
-	imgsensor.min_frame_length = imgsensor_info.normal_video.framelength;
-	imgsensor.autoflicker_en = KAL_FALSE;
-	spin_unlock(&imgsensor_drv_lock);
-
-	normal_video_setting(imgsensor.current_fps);
+	if (imgsensor.current_fps >= 590) {
+		/* 4K 60fps recording mode: switch to custom3 60fps hardware timing registers */
+		imgsensor.pclk = imgsensor_info.custom3.pclk;
+		imgsensor.line_length = imgsensor_info.custom3.linelength;
+		imgsensor.frame_length = imgsensor_info.custom3.framelength;
+		imgsensor.gw1_binning_mode = imgsensor_info.custom3.gw1_binning_mode;
+		imgsensor.min_frame_length = imgsensor_info.custom3.framelength;
+		imgsensor.autoflicker_en = KAL_FALSE;
+		spin_unlock(&imgsensor_drv_lock);
+		custom3_setting();
+	} else {
+		imgsensor.pclk = imgsensor_info.normal_video.pclk;
+		imgsensor.line_length = imgsensor_info.normal_video.linelength;
+		imgsensor.frame_length = imgsensor_info.normal_video.framelength;
+		imgsensor.gw1_binning_mode = imgsensor_info.normal_video.gw1_binning_mode;
+		imgsensor.min_frame_length = imgsensor_info.normal_video.framelength;
+		imgsensor.autoflicker_en = KAL_FALSE;
+		spin_unlock(&imgsensor_drv_lock);
+		normal_video_setting(imgsensor.current_fps);
+	}
 	set_mirror_flip(imgsensor.mirror);
 
 	return ERROR_NONE;
@@ -15294,19 +15305,35 @@ enum MSDK_SCENARIO_ID_ENUM scenario_id, MUINT32 framerate)
 	case MSDK_SCENARIO_ID_VIDEO_PREVIEW:
 		if (framerate == 0)
 			return ERROR_NONE;
-		frame_length = imgsensor_info.normal_video.pclk
-		    / framerate * 10 / imgsensor_info.normal_video.linelength;
+		if (framerate >= 590) {
+			frame_length = imgsensor_info.custom3.pclk
+			    / framerate * 10 / imgsensor_info.custom3.linelength;
 
-		spin_lock(&imgsensor_drv_lock);
-		imgsensor.dummy_line =
-	    (frame_length > imgsensor_info.normal_video.framelength)
-	  ? (frame_length - imgsensor_info.normal_video.  framelength) : 0;
+			spin_lock(&imgsensor_drv_lock);
+			imgsensor.dummy_line =
+			    (frame_length > imgsensor_info.custom3.framelength)
+			    ? (frame_length - imgsensor_info.custom3.framelength) : 0;
 
-		imgsensor.frame_length =
-		 imgsensor_info.normal_video.framelength + imgsensor.dummy_line;
+			imgsensor.frame_length =
+			    imgsensor_info.custom3.framelength + imgsensor.dummy_line;
 
-		imgsensor.min_frame_length = imgsensor.frame_length;
-		spin_unlock(&imgsensor_drv_lock);
+			imgsensor.min_frame_length = imgsensor.frame_length;
+			spin_unlock(&imgsensor_drv_lock);
+		} else {
+			frame_length = imgsensor_info.normal_video.pclk
+			    / framerate * 10 / imgsensor_info.normal_video.linelength;
+
+			spin_lock(&imgsensor_drv_lock);
+			imgsensor.dummy_line =
+			    (frame_length > imgsensor_info.normal_video.framelength)
+			    ? (frame_length - imgsensor_info.normal_video.framelength) : 0;
+
+			imgsensor.frame_length =
+			    imgsensor_info.normal_video.framelength + imgsensor.dummy_line;
+
+			imgsensor.min_frame_length = imgsensor.frame_length;
+			spin_unlock(&imgsensor_drv_lock);
+		}
 		if (imgsensor.frame_length > imgsensor.shutter)
 			set_dummy();
 		else {
