@@ -77,7 +77,7 @@ Pox Kernel releases are categorized into distinct **Rock Editions**, designed to
   - **APatch / KernelPatch Ready**: Full `CONFIG_KALLSYMS_ALL=y` symbol table exposed for clean, systemless kernel hooking without bootloop risks.
 
 ### 2. Obsidian: iOS-Style Compressed Memory
-- **Target Branches**: `memory-enhanced` / `obsidian`
+- **Target Branch**: `obsidian`
 - **Key Features**:
   - **iOS-Style Asynchronous RAM Management**: Transparent, on-demand memory compaction keeping foreground processes completely jitter-free.
   - **`watermark_scale_factor = 150`**: Increases the buffer between free pages and the low watermark, initiating background kswapd reclaim long before any app frame drops.
@@ -85,7 +85,7 @@ Pox Kernel releases are categorized into distinct **Rock Editions**, designed to
   - **Balanced Swappiness (100) & Low VFS Pressure (60)**: Keeps active app caches pinned in memory, preventing aggressive background app termination when multitasking.
 
 ### 3. Onyx: Zero Frame-Drop Gaming
-- **Target Branches**: `gaming` / `onyx`
+- **Target Branch**: `onyx`
 - **Key Features**:
   - **Unified Kernel Gaming Mode Controller**: Direct kernel interface (`/proc/perfmgr/gaming_mode`) toggleable between Normal (`0`), Gaming (`1`), and Extreme (`2`).
   - **ROM Performance Auto-Trigger**: Automatically activates full gaming profile when Performance Mode or GameSpace is toggled in any ROM (MIUI / HyperOS, LineageOS, PixelOS, Chaldea).
@@ -97,11 +97,11 @@ Pox Kernel releases are categorized into distinct **Rock Editions**, designed to
 
 ## Repository & Branch Organization
 
-| Branch Name | Release Alias | Edition Name | Version | Purpose & Contents |
-|:---|:---|:---|:---:|:---|
-| **`main`** | **`granite`** | **Granite** | `0.9` | Official stable release branch with core stability fixes |
-| **`memory-enhanced`** | **`obsidian`** | **Obsidian** | `0.9` | Granite + iOS-Style compressed memory engine |
-| **`gaming`** | **`onyx`** | **Onyx** | `0.9` | Obsidian + Zero Frame-Drop Gaming Controller |
+| Branch Name | Edition Name | Version | Purpose & Contents |
+|:---|:---|:---:|:---|
+| **`main`** / **`granite`** | **Granite** | `0.9` | Official stable release branch with core stability fixes |
+| **`obsidian`** | **Obsidian** | `0.9` | Granite + iOS-Style compressed memory engine |
+| **`onyx`** | **Onyx** | `0.9` | Obsidian + Zero Frame-Drop Gaming Controller |
 
 ---
 
@@ -116,7 +116,7 @@ Pox Kernel releases are categorized into distinct **Rock Editions**, designed to
 1. Reboot into recovery (`Power` + `Volume Up`).
 2. *(Optional but recommended)* Create a NANDroid backup of your current `Boot` partition.
 3. Tap **Install** and navigate to your downloaded package:
-   - Example: `Pox-0.9-Onyx-gaming-<commit>-begonia.zip`
+   - Example: `Pox-0.9-Onyx-onyx-<commit>-begonia.zip`
 4. Swipe to confirm flash.
 5. The AnyKernel3 installer will verify the device, display the edition details, inject ramdisk init scripts, and flash the kernel image.
 6. Tap **Reboot System**.
