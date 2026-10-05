@@ -13,6 +13,17 @@
 #include "asm/cacheflush.h"
 #include "asm-generic/fixmap.h"
 
+/*
+ * Pre-5.x helpers. The nop4d headers already turn p4d_offset() into a no-op
+ * passthrough, so the page walk below is valid as written; only these later
+ * helpers need substituting.
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
+/* The fixmap page is a valid, writable kernel VA, so a plain copy is safe. */
+#define copy_to_kernel_nofault(dst, src, len) ({ memcpy((dst), (src), (len)); 0L; })
+#define __pte_to_phys(pte) page_to_phys(pte_page(pte))
+#endif
+
 // https://github.com/fuqiuluo/ovo/blob/f7da411458e87d32438dc14fce5a3313ed0c967e/ovo/mmuhack.c#L21
 
 // Translate a kernel virtual address to a physical address by walking the
@@ -102,7 +113,11 @@ fail:
 #define ksu_flush_icache(start, end) caches_clean_inval_pou(start, end)
 #else
 #define ksu_flush_dcache(start, sz) __flush_dcache_area((void *)start, sz)
-#define ksu_flush_icache(start, end) __flush_icache_range(start, end)
+/*
+ * __flush_icache_range() only exists alongside the newer dcache helpers; on
+ * kernels this old only the exported flush_icache_range() is available.
+ */
+#define ksu_flush_icache(start, end) flush_icache_range((start), (end))
 #endif
 
 struct patch_text_info {

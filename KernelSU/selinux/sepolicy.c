@@ -13,6 +13,108 @@
 #include "sepolicy.h"
 #include "klog.h" // IWYU pragma: keep
 #include "ss/symtab.h"
+#if KSU_SELINUX_NO_LIVE_PATCH
+
+/*
+ * Policy mutation primitives. They walk the modern policydb/avtab/filename_trans
+ * representations; this kernel uses the pre-4.12 ones, so none of them can be
+ * built. selinux/rules.c already reports that rules cannot be applied, and
+ * feature/selinux_hide.c is stubbed the same way.
+ *
+ * Signatures follow selinux/sepolicy.h, which is what consumers see.
+ */
+
+void ksu_destroy_sepolicy(struct selinux_policy *orig)
+{
+}
+
+bool ksu_type(struct policydb *db, const char *name, const char *attr)
+{
+	return false;
+}
+
+bool ksu_attribute(struct policydb *db, const char *name)
+{
+	return false;
+}
+
+bool ksu_permissive(struct policydb *db, const char *type)
+{
+	return false;
+}
+
+bool ksu_enforce(struct policydb *db, const char *type)
+{
+	return false;
+}
+
+bool ksu_typeattribute(struct policydb *db, const char *type, const char *attr)
+{
+	return false;
+}
+
+bool ksu_exists(struct policydb *db, const char *type)
+{
+	return false;
+}
+
+bool ksu_allow(struct policydb *db, const char *src, const char *tgt, const char *cls, const char *perm)
+{
+	return false;
+}
+
+bool ksu_deny(struct policydb *db, const char *src, const char *tgt, const char *cls, const char *perm)
+{
+	return false;
+}
+
+bool ksu_auditallow(struct policydb *db, const char *src, const char *tgt, const char *cls, const char *perm)
+{
+	return false;
+}
+
+bool ksu_dontaudit(struct policydb *db, const char *src, const char *tgt, const char *cls, const char *perm)
+{
+	return false;
+}
+
+bool ksu_allowxperm(struct policydb *db, const char *src, const char *tgt, const char *cls, const char *range)
+{
+	return false;
+}
+
+bool ksu_auditallowxperm(struct policydb *db, const char *src, const char *tgt, const char *cls, const char *range)
+{
+	return false;
+}
+
+bool ksu_dontauditxperm(struct policydb *db, const char *src, const char *tgt, const char *cls, const char *range)
+{
+	return false;
+}
+
+bool ksu_type_transition(struct policydb *db, const char *src, const char *tgt, const char *cls, const char *def, const char *obj)
+{
+	return false;
+}
+
+bool ksu_type_change(struct policydb *db, const char *src, const char *tgt, const char *cls, const char *def)
+{
+	return false;
+}
+
+bool ksu_type_member(struct policydb *db, const char *src, const char *tgt, const char *cls, const char *def)
+{
+	return false;
+}
+
+bool ksu_genfscon(struct policydb *db, const char *fs_name, const char *path, const char *ctx)
+{
+	return false;
+}
+
+#else
+
 
 #define KSU_SUPPORT_ADD_TYPE
 
@@ -1030,3 +1132,5 @@ out_free_data:
 
     return ERR_PTR(ret);
 }
+
+#endif /* KSU_SELINUX_NO_LIVE_PATCH */

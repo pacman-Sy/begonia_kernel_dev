@@ -28,6 +28,37 @@
 #include "ksu.h"
 #include "policy/feature.h"
 #include "hook/lsm_hook.h"
+#if KSU_SELINUX_NO_LIVE_PATCH
+
+/*
+ * SELinux hiding works by evaluating access against backup_sepolicy, a private
+ * duplicate of the loaded policy produced by selinux/sepolicy.c. Neither the
+ * policy duplicate nor the *_with_policy() accessors exist on this kernel, and
+ * apply_kernelsu_rules() leaves backup_sepolicy NULL, so keep the entry points
+ * as no-ops.
+ */
+void ksu_selinux_hide_init()
+{
+}
+
+void ksu_selinux_hide_exit()
+{
+}
+
+void ksu_selinux_hide_drop_backup_if_unused()
+{
+}
+
+void ksu_selinux_hide_handle_second_stage()
+{
+}
+
+void ksu_selinux_hide_handle_post_fs_data()
+{
+}
+
+#else
+
 
 static DEFINE_MUTEX(selinux_hide_mutex);
 static bool ksu_selinux_hide_enabled __read_mostly = false;
@@ -1144,3 +1175,5 @@ allow:
     goto out;
 }
 #endif
+
+#endif /* KSU_SELINUX_NO_LIVE_PATCH */

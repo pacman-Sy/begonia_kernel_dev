@@ -72,6 +72,7 @@ endif
 
 ccflags-y += -I$(srctree)/security/selinux -I$(srctree)/security/selinux/include
 ccflags-y += -I$(objtree)/security/selinux -include $(srctree)/include/uapi/asm-generic/errno.h
+ccflags-y += -include $(srctree)/drivers/kernelsu/compat/include/linux/ksu_compat_types.h
 
 ifneq ($(KBUILD_EXTMOD),)
 # 6.18 exports the external module source as srcroot when M/MO are used.
@@ -87,6 +88,16 @@ KSU_KERNEL_DIR := $(src)
 endif
 
 ccflags-y += -I$(KSU_KERNEL_DIR) -I$(KSU_KERNEL_DIR)/include
+
+# When built in-tree via "obj-y += kernelsu/" neither KBUILD_EXTMOD nor src
+# is set, so KSU_KERNEL_DIR above collapses to $(srctree) and the shared
+# "uapi/app_profile.h" is looked for at the kernel root where it does not
+# exist. drivers/kernelsu is a symlink to this directory, so pointing -I at
+# it resolves uapi/ through include/uapi -> ../uapi.
+ccflags-y += -I$(srctree)/drivers/kernelsu
+
+# Compat shims for headers split out after 4.14 (see compat/include/README.md).
+ccflags-y += -I$(srctree)/drivers/kernelsu/compat/include
 
 obj-$(CONFIG_KSU) += kernelsu.o
 
@@ -135,6 +146,33 @@ endif
 
 KSU_NEW_DCACHE_FLUSH := $(shell grep -q __flush_dcache_area $(srctree)/arch/arm64/include/asm/cacheflush.h ; echo $$?)
 $(info -- KernelSU-Next new DCACHE flush: $(KSU_NEW_DCACHE_FLUSH))
+
+# infra/file_wrapper.c needs a handful of APIs that this kernel may not have:
+# __poll_t, fops->iopoll/->mmap_supported_flags/->remap_file_range/->fadvise,
+# alloc_file_pseudo and security_inode_init_security_anon. Probe for the
+# cheapest marker and no-op the whole subsystem when it is absent, following
+# the same convention as KSU_NEW_DCACHE_FLUSH above (1 == required).
+KSU_FILE_WRAPPER_UNSUPPORTED := $(shell grep -q __poll_t $(srctree)/include/uapi/asm-generic/poll.h ; echo $$?)
+$(info -- KernelSU-Next file wrapper unsupported: $(KSU_FILE_WRAPPER_UNSUPPORTED))
+ccflags-y += -DKSU_FILE_WRAPPER_UNSUPPORTED=$(KSU_FILE_WRAPPER_UNSUPPORTED)
+
+# struct seccomp gained filter_count together with the 5.x arch-bitmask rework.
+KSU_SECCOMP_NO_FILTER_COUNT := $(shell grep -q filter_count $(srctree)/include/linux/seccomp.h ; echo $$?)
+$(info -- KernelSU-Next seccomp lacks filter_count: $(KSU_SECCOMP_NO_FILTER_COUNT))
+ccflags-y += -DKSU_SECCOMP_NO_FILTER_COUNT=$(KSU_SECCOMP_NO_FILTER_COUNT)
+
+# linux/uaccess.h here lacks copy_{from,to}_user_nofault (4.12+) and
+# strncpy_from_user_nofault (5.8+); compat/include provides them.
+KSU_USERCOPY_NO_NOFAULT := $(shell grep -q copy_from_user_nofault $(srctree)/include/linux/uaccess.h ; echo $$?)
+$(info -- KernelSU-Next uaccess lacks *_nofault: $(KSU_USERCOPY_NO_NOFAULT))
+ccflags-y += -DKSU_USERCOPY_NO_NOFAULT=$(KSU_USERCOPY_NO_NOFAULT)
+
+# Live sepolicy mutation needs selinux_state.policy / struct selinux_policy.
+# This tree keeps the older selinux_state { ss } layout instead, so
+# selinux/rules.c can only be built as a stub.
+KSU_SELINUX_NO_LIVE_PATCH := $(shell grep -q 'struct selinux_policy \*policy;' $(srctree)/security/selinux/include/security.h ; echo $$?)
+$(info -- KernelSU-Next SELinux live patch unsupported: $(KSU_SELINUX_NO_LIVE_PATCH))
+ccflags-y += -DKSU_SELINUX_NO_LIVE_PATCH=$(KSU_SELINUX_NO_LIVE_PATCH)
 
 ifndef KSU_NEXT_MANAGER_SIZE
 KSU_NEXT_MANAGER_SIZE := 0x3e6

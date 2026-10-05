@@ -6,6 +6,8 @@
 typedef sys_call_ptr_t syscall_fn_t;
 #elif defined(__riscv)
 typedef long (*syscall_fn_t)(const struct pt_regs *);
+#elif defined(__aarch64__)
+typedef long (*syscall_fn_t)(const struct pt_regs *);
 #endif
 
 extern syscall_fn_t *ksu_syscall_table;

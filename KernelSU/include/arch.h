@@ -3,6 +3,34 @@
 
 #include <linux/version.h>
 
+/*
+ * CONFIG_ARCH_HAS_SYSCALL_WRAPPER landed in Linux 5.9. It is what provides
+ * the __arm64_sys_* trampolines that take a struct pt_regs. Kernels older
+ * than that (this tree is 4.14) call sys_* directly with real arguments, so
+ * the pt_regs-based syscall table/interception machinery cannot be used.
+ */
+#if defined(CONFIG_ARCH_HAS_SYSCALL_WRAPPER)
+#define KSU_HAVE_SYSCALL_WRAPPER 1
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
+#define KSU_HAVE_SYSCALL_WRAPPER 1
+#else
+#define KSU_HAVE_SYSCALL_WRAPPER 0
+#endif
+
+/*
+ * ksun's LSM list patching walks the security_hook_list hlist directly and
+ * assumes the modern layout, where hlist_head embeds a struct list_head and
+ * list_head grew first/pprev again. 4.14 still has
+ * hlist_head { struct hlist_node *first; } and a two-pointer list_head, so
+ * the head->first / list.pprev juggling cannot even compile there. Enable the
+ * patch only where the modern layout is known to be present.
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
+#define KSU_HAVE_LSM_HOOK 1
+#else
+#define KSU_HAVE_LSM_HOOK 0
+#endif
+
 #if defined(__aarch64__)
 
 #define __PT_PARM1_REG regs[0]

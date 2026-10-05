@@ -1,5 +1,6 @@
 #include <linux/capability.h>
 #include <linux/cred.h>
+#include <linux/sched/task.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>

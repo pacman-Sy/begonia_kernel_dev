@@ -2,6 +2,7 @@
 #include "linux/cred.h"
 #include "linux/sched.h"
 #include "objsec.h"
+#include "selinux/compat.h"
 #include "linux/version.h"
 #include "klog.h" // IWYU pragma: keep
 #include "ksu.h"

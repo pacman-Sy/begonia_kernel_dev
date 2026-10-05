@@ -2,6 +2,8 @@
 #include <linux/limits.h>
 #include <linux/rculist.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
+#include <linux/sched/task.h>
 #include <linux/task_work.h>
 #include <linux/capability.h>
 #include <linux/compiler.h>

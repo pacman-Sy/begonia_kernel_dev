@@ -21,6 +21,27 @@
 
 #include "infra/file_wrapper.h"
 
+#if KSU_FILE_WRAPPER_UNSUPPORTED
+
+/*
+ * This kernel lacks the file_operations/API surface the wrapper needs
+ * (__poll_t, ->iopoll, ->mmap_supported_flags, ->remap_file_range, ->fadvise,
+ * alloc_file_pseudo, security_inode_init_security_anon). Provide inert stubs
+ * so the callers in core/init.c and supercall/dispatch.c still link; fd
+ * wrapping and redirection are simply unavailable.
+ */
+int ksu_install_file_wrapper(int fd)
+{
+    return -EOPNOTSUPP;
+}
+
+void ksu_file_wrapper_init(void)
+{
+    pr_info("ksu_fdwrapper: disabled, unsupported file_operations on this kernel\n");
+}
+
+#else
+
 struct ksu_file_wrapper {
     struct file *orig;
     struct file_operations ops;
@@ -637,3 +658,5 @@ void __init ksu_file_wrapper_init(void)
     fput(dummy);
 #endif
 }
+
+#endif /* KSU_FILE_WRAPPER_UNSUPPORTED */

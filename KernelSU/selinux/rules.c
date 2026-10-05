@@ -15,6 +15,25 @@
 #include "linux/lsm_audit.h" // IWYU pragma: keep
 #include "xfrm.h"
 
+#if KSU_SELINUX_NO_LIVE_PATCH
+
+/*
+ * Live SELinux policy mutation is unavailable on this kernel: it keeps the
+ * older selinux_state { ... struct selinux_ss *ss; } layout with no
+ * selinux_state.policy, and struct selinux_policy is never defined, so the
+ * dup/mutate/reload flow below cannot be built. Keep the global that
+ * feature/selinux_hide.c guards on, and report that no rules were applied.
+ */
+struct selinux_policy *backup_sepolicy;
+
+void apply_kernelsu_rules()
+{
+    pr_warn("SELinux: live policy patching is unsupported on this kernel, skipping KernelSU rules\n");
+    backup_sepolicy = NULL;
+}
+
+#else
+
 struct selinux_policy *backup_sepolicy;
 
 #define SELINUX_POLICY_INSTEAD_SELINUX_SS
@@ -553,3 +572,5 @@ out_free:
 
     return ret;
 }
+
+#endif /* KSU_SELINUX_NO_LIVE_PATCH */

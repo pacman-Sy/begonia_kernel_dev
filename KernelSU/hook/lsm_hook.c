@@ -84,6 +84,7 @@ static int ksu_lsm_hook_update_scall(struct lsm_static_call *scall, void *value)
 }
 #endif
 
+#if KSU_HAVE_LSM_HOOK
 int ksu_lsm_hook(struct ksu_lsm_hook *hook)
 {
     int ret = 0;
@@ -398,6 +399,7 @@ out_unlock:
     return ret;
 }
 
+#if KSU_HAVE_LSM_HOOK
 void ksu_lsm_unhook(struct ksu_lsm_hook *hook)
 {
     void **slot;
@@ -447,6 +449,21 @@ void ksu_lsm_unhook(struct ksu_lsm_hook *hook)
 #endif
     mutex_unlock(&ksu_lsm_hook_lock);
 }
+#else
+void ksu_lsm_unhook(struct ksu_lsm_hook *hook)
+{
+    /* Nothing was ever installed: ksu_lsm_hook() bailed out. */
+}
+#endif
+
+#else
+int ksu_lsm_hook(struct ksu_lsm_hook *hook)
+{
+    pr_warn("lsm_hook: unsupported on this kernel (legacy hlist layout)\n");
+    return -EOPNOTSUPP;
+}
+#endif
+
 
 int ksu_register_lsm_hook(struct ksu_lsm_hook *hook)
 {

@@ -4,6 +4,7 @@
 #include "linux/printk.h"
 #include "selinux/selinux.h"
 #include <asm/syscall.h>
+#include <asm/uaccess.h>
 #include <linux/ptrace.h>
 #include <linux/static_key.h>
 

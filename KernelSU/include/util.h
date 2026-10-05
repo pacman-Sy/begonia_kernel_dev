@@ -25,10 +25,12 @@ static_assert(1 == 0, "Unsupported architecture!");
 
 /**
  * ksyscall: call syscalls from kernelspace
- * - tries to copy unistd's syscall()
+ * - on >= 5.9 (syscall wrapper present) tries unistd's syscall()
  *
  * usage: ksyscall(close, fd);
  */
+#if KSU_HAVE_SYSCALL_WRAPPER
+
 #define __ksyscall(name, a, b, c, d, e, f)                                                                             \
     ({                                                                                                                 \
         extern long KSU_SYS_PREFIX(name)(const struct pt_regs *);                                                      \
@@ -42,14 +44,24 @@ static_assert(1 == 0, "Unsupported architecture!");
         (long)KSU_SYS_PREFIX(name)(&__ksu_regs);                                                                       \
     })
 
-// https://elixir.bootlin.com/musl/v1.2.6/source/src/internal/syscall.h#L45
-#define ksyscall_0(name) __ksyscall(name, 0, 0, 0, 0, 0, 0)
-#define ksyscall_1(name, a) __ksyscall(name, a, 0, 0, 0, 0, 0)
-#define ksyscall_2(name, a, b) __ksyscall(name, a, b, 0, 0, 0, 0)
-#define ksyscall_3(name, a, b, c) __ksyscall(name, a, b, c, 0, 0, 0)
-#define ksyscall_4(name, a, b, c, d) __ksyscall(name, a, b, c, d, 0, 0)
-#define ksyscall_5(name, a, b, c, d, e) __ksyscall(name, a, b, c, d, e, 0)
-#define ksyscall_6(name, a, b, c, d, e, f) __ksyscall(name, a, b, c, d, e, f)
+#else
+
+/*
+ * Pre-5.9: there is no syscall wrapper, so sys_* take their arguments
+ * directly. Call them per-arity instead of fabricating a struct pt_regs.
+ * The prototypes come from <linux/syscalls.h>, which is included above.
+ */
+#define ksyscall_0(name) sys_##name()
+#define ksyscall_1(name, a) sys_##name((a))
+#define ksyscall_2(name, a, b) sys_##name((a), (b))
+#define ksyscall_3(name, a, b, c) sys_##name((a), (b), (c))
+#define ksyscall_4(name, a, b, c, d) sys_##name((a), (b), (c), (d))
+#define ksyscall_5(name, a, b, c, d, e) sys_##name((a), (b), (c), (d), (e))
+#define ksyscall_6(name, a, b, c, d, e, f)                                                     \
+	sys_##name((a), (b), (c), (d), (e), (f))
+
+
+#endif
 
 #define __ksyscall_arg_n(_1, _2, _3, _4, _5, _6, _7, N, ...) N
 #define __ksyscall_count_args(...) __ksyscall_arg_n(__VA_ARGS__, 6, 5, 4, 3, 2, 1, 0)
@@ -59,6 +71,8 @@ static_assert(1 == 0, "Unsupported architecture!");
 
 #define ksu_close_fd(fd) ({ ksyscall(close, fd); })
 #define ksu_sys_setns(fd, flags) ({ ksyscall(setns, fd, flags); })
+// infra/su_mount_ns.c calls this but nothing ever defined it upstream.
+#define ksys_unshare(flags) ({ ksyscall(unshare, flags); })
 
 static inline struct file *ksu_filp_open_nonotify(const char *path, int flags)
 {

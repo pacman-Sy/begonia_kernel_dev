@@ -1,4 +1,7 @@
 #include <linux/ktime.h>
+#include <linux/fs.h>
+#include <linux/capability.h>
+#include <linux/eventpoll.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/overflow.h>
