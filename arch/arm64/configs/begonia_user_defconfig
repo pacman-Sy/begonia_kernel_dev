@@ -249,7 +249,11 @@ CONFIG_SYSTEM_DATA_VERIFICATION=y
 CONFIG_PROFILING=y
 CONFIG_TRACEPOINTS=y
 CONFIG_KPROBES=y
+<<<<<<< HEAD
 CONFIG_KRETPROBES=y
+=======
+CONFIG_KPROBE_EVENTS=y
+>>>>>>> d3b3fa65f216 (feat: integrate KernelSU-Next v3.3.0 and nomount on onyx-ksu-next)
 # CONFIG_JUMP_LABEL is not set
 CONFIG_UPROBES=y
 # CONFIG_HAVE_64BIT_ALIGNED_ACCESS is not set
@@ -5250,6 +5254,7 @@ CONFIG_ARCH_HAS_SG_CHAIN=y
 CONFIG_SBITMAP=y
 # CONFIG_STRING_SELFTEST is not set
 CONFIG_HWCONF_MANAGER=y
+<<<<<<< HEAD
 
 # KSU
 CONFIG_KSU=y
@@ -5257,3 +5262,7 @@ CONFIG_KSU=y
 
 # NoMount
 CONFIG_NOMOUNT=y
+=======
+CONFIG_KSU=y
+CONFIG_NOMOUNT=y
+>>>>>>> d3b3fa65f216 (feat: integrate KernelSU-Next v3.3.0 and nomount on onyx-ksu-next)
