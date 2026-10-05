@@ -2,9 +2,9 @@ name: Build Kernel
 
 on:
   push:
-    branches: [main]
+    branches: [KSU, main]
   pull_request:
-    branches: [main]
+    branches: [KSU, main]
   workflow_dispatch:
 
 concurrency:
@@ -16,7 +16,7 @@ jobs:
     name: Build begonia kernel
     runs-on: ubuntu-latest
     env:
-      KERNEL_NAME: PoWeR-Kernel-begonia
+      KERNEL_NAME: MeTh-Kernel-begonia
       TC_ROOT: ${{ github.workspace }}/toolchains
       OUT_DIR: out
       CLANG_VER: clang-r383902
@@ -26,6 +26,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: recursive
 
       - name: Install dependencies
         run: |
