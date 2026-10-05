@@ -16,7 +16,52 @@
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>
 #include <linux/backing-dev.h>
+#include <linux/kobject.h>
+#include <linux/sysfs.h>
 #include "internal.h"
+
+/* Dynamic Fsync implementation */
+static int dynamic_fsync_enabled = 0;
+
+int pox_dynamic_fsync_get(void)
+{
+	return dynamic_fsync_enabled;
+}
+EXPORT_SYMBOL(pox_dynamic_fsync_get);
+
+void pox_dynamic_fsync_set(int enable)
+{
+	dynamic_fsync_enabled = enable ? 1 : 0;
+	pr_info("Dynamic Fsync set to %d\n", dynamic_fsync_enabled);
+}
+EXPORT_SYMBOL(pox_dynamic_fsync_set);
+
+static ssize_t dynamic_fsync_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", pox_dynamic_fsync_get());
+}
+
+static ssize_t dynamic_fsync_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	int val = 0;
+	if (kstrtoint(buf, 10, &val) == 0)
+		pox_dynamic_fsync_set(val);
+	return count;
+}
+
+static struct kobj_attribute dynamic_fsync_kattr = __ATTR(dynamic_fsync, 0664, dynamic_fsync_show, dynamic_fsync_store);
+
+static int __init dynamic_fsync_init(void)
+{
+	struct kobject *dfs_kobj = kobject_create_and_add("dynamic_fsync", kernel_kobj);
+	if (dfs_kobj) {
+		int ret = sysfs_create_file(dfs_kobj, &dynamic_fsync_kattr.attr);
+		if (ret)
+			pr_warn("Failed to create /sys/kernel/dynamic_fsync/dynamic_fsync (ret=%d)\n", ret);
+	}
+	return 0;
+}
+late_initcall(dynamic_fsync_init);
 
 #define VALID_FLAGS (SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE| \
 			SYNC_FILE_RANGE_WAIT_AFTER)
@@ -183,7 +228,15 @@ SYSCALL_DEFINE1(syncfs, int, fd)
  */
 int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	struct inode *inode = file->f_mapping->host;
+	struct inode *inode;
+
+	if (!file)
+		return -EBADF;
+
+	if (dynamic_fsync_enabled && file_inode(file) && S_ISREG(file_inode(file)->i_mode))
+		return 0;
+
+	inode = file->f_mapping->host;
 
 	if (!file->f_op->fsync)
 		return -EINVAL;

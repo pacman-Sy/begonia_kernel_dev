@@ -567,20 +567,46 @@ static bool wakeup_source_not_registered(struct wakeup_source *ws)
  * function executed when the timer expires, whichever comes first.
  */
 
-/**
- * wakup_source_activate - Mark given wakeup source as active.
- * @ws: Wakeup source to handle.
- *
- * Update the @ws' statistics and, if @ws has just been activated, notify the PM
- * core of the event by incrementing the counter of of wakeup events being
- * processed.
- */
+static int s_wakelock_blocker_enabled = 1;
+
+int pox_wakelock_blocker_get(void)
+{
+	return s_wakelock_blocker_enabled;
+}
+EXPORT_SYMBOL(pox_wakelock_blocker_get);
+
+void pox_wakelock_blocker_set(int enable)
+{
+	s_wakelock_blocker_enabled = enable ? 1 : 0;
+	pr_info("Wakelock Blocker set to %d\n", s_wakelock_blocker_enabled);
+}
+EXPORT_SYMBOL(pox_wakelock_blocker_set);
+
+static bool is_blocked_wakelock(const char *name)
+{
+	if (!s_wakelock_blocker_enabled || !name)
+		return false;
+
+	if (strcmp(name, "wlan_wake") == 0 ||
+	    strcmp(name, "wlan_wow_wl") == 0 ||
+	    strcmp(name, "wlan_extscan_wl") == 0 ||
+	    strcmp(name, "netmgr_wl") == 0 ||
+	    strcmp(name, "pno_wl") == 0 ||
+	    strcmp(name, "wmt_wl") == 0)
+		return true;
+
+	return false;
+}
+
 static void wakeup_source_activate(struct wakeup_source *ws)
 {
 	unsigned int cec;
 
 	if (WARN_ONCE(wakeup_source_not_registered(ws),
 			"unregistered wakeup source\n"))
+		return;
+
+	if (is_blocked_wakelock(ws->name))
 		return;
 
 	ws->active = true;

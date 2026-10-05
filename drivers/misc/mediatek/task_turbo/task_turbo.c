@@ -36,7 +36,8 @@ static uint32_t launch_turbo =  SUB_FEAT_LOCK | SUB_FEAT_BINDER |
 				SUB_FEAT_SCHED | SUB_FEAT_FLAVOR_BIGCORE;
 static DEFINE_MUTEX(TURBO_MUTEX_LOCK);
 static pid_t turbo_pid[TURBO_PID_COUNT] = {0};
-static unsigned int task_turbo_feats;
+static unsigned int task_turbo_feats = SUB_FEAT_LOCK | SUB_FEAT_BINDER |
+				       SUB_FEAT_SCHED | SUB_FEAT_FLAVOR_BIGCORE;
 
 inline bool latency_turbo_enable(void)
 {

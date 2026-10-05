@@ -99,7 +99,7 @@ void init_cust_vibrator_dtsi(struct platform_device *pdev)
 		else
 			pvib_cust->vib_vol = 0x05;
 
-		pvib_cust->vib_vol_max = pvib_cust->vib_vol;
+		pvib_cust->vib_vol_max = 0x0D; /* Unlock full PMIC voltage range up to 3.3V */
 #endif
 		pr_debug(T "pvib_cust = %d, %d, %d\n",
 			pvib_cust->vib_timer, pvib_cust->vib_limit,
@@ -129,6 +129,30 @@ void vibr_power_set(void)
 	}
 #endif
 }
+
+int pox_vibrator_strength_get(void)
+{
+	struct vibrator_hw *hw = get_cust_vibrator_dtsi();
+	if (hw)
+		return hw->vib_vol;
+	return 5;
+}
+EXPORT_SYMBOL(pox_vibrator_strength_get);
+
+int pox_vibrator_strength_set(int vol)
+{
+	struct vibrator_hw *hw = get_cust_vibrator_dtsi();
+	if (vol < 0) vol = 0;
+	if (vol > 0x0D) vol = 0x0D;
+	if (hw) {
+		hw->vib_vol = vol;
+		vibr_power_set();
+		pr_info("Vibrator strength voltage set to 0x%02x\n", vol);
+		return 0;
+	}
+	return -ENODEV;
+}
+EXPORT_SYMBOL(pox_vibrator_strength_set);
 
 struct vibrator_hw *mt_get_cust_vibrator_hw(void)
 {

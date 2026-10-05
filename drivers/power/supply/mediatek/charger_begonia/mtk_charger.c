@@ -3520,6 +3520,22 @@ int pox_battery_status_get(char *buf, size_t size)
 }
 EXPORT_SYMBOL(pox_battery_status_get);
 
+static int g_battery_fast_charge = 1;
+
+int pox_fast_charge_get(void)
+{
+	return g_battery_fast_charge;
+}
+EXPORT_SYMBOL(pox_fast_charge_get);
+
+void pox_fast_charge_set(int enable)
+{
+	g_battery_fast_charge = enable ? 1 : 0;
+	if (pinfo)
+		_wake_up_charger(pinfo);
+}
+EXPORT_SYMBOL(pox_fast_charge_set);
+
 static ssize_t battery_protect_soc_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", battery_get_uisoc());

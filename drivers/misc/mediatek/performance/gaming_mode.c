@@ -860,6 +860,258 @@ static const struct file_operations headphone_gain_proc_fops = {
 	.release = single_release,
 };
 
+/* Vibrator Strength Interface */
+extern int pox_vibrator_strength_get(void);
+extern int pox_vibrator_strength_set(int vol);
+
+static int vibrator_strength_proc_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", pox_vibrator_strength_get());
+	return 0;
+}
+
+static int vibrator_strength_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, vibrator_strength_proc_show, NULL);
+}
+
+static ssize_t vibrator_strength_proc_write(struct file *file, const char __user *buffer,
+					    size_t count, loff_t *pos)
+{
+	char buf[16];
+	int val;
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, buffer, count))
+		return -EFAULT;
+	buf[count] = '\0';
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	pox_vibrator_strength_set(val);
+	return count;
+}
+
+static const struct file_operations vibrator_strength_proc_fops = {
+	.open    = vibrator_strength_proc_open,
+	.read    = seq_read,
+	.write   = vibrator_strength_proc_write,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
+/* Wakelock Blocker Deep Sleep Interface */
+extern int pox_wakelock_blocker_get(void);
+extern void pox_wakelock_blocker_set(int enable);
+
+static int wakelock_blocker_proc_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", pox_wakelock_blocker_get());
+	return 0;
+}
+
+static int wakelock_blocker_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wakelock_blocker_proc_show, NULL);
+}
+
+static ssize_t wakelock_blocker_proc_write(struct file *file, const char __user *buffer,
+					   size_t count, loff_t *pos)
+{
+	char buf[16];
+	int val;
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, buffer, count))
+		return -EFAULT;
+	buf[count] = '\0';
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	pox_wakelock_blocker_set(val);
+	return count;
+}
+
+static const struct file_operations wakelock_blocker_proc_fops = {
+	.open    = wakelock_blocker_proc_open,
+	.read    = seq_read,
+	.write   = wakelock_blocker_proc_write,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
+/* Fast Charge Control Interface */
+extern int pox_fast_charge_get(void);
+extern void pox_fast_charge_set(int enable);
+
+static int fast_charge_proc_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", pox_fast_charge_get());
+	return 0;
+}
+
+static int fast_charge_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, fast_charge_proc_show, NULL);
+}
+
+static ssize_t fast_charge_proc_write(struct file *file, const char __user *buffer,
+				      size_t count, loff_t *pos)
+{
+	char buf[16];
+	int val;
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, buffer, count))
+		return -EFAULT;
+	buf[count] = '\0';
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	pox_fast_charge_set(val);
+	return count;
+}
+
+static const struct file_operations fast_charge_proc_fops = {
+	.open    = fast_charge_proc_open,
+	.read    = seq_read,
+	.write   = fast_charge_proc_write,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
+/* Double-Tap to Wake Interface */
+extern int pox_dt2w_get(void);
+extern int pox_dt2w_set(int enable);
+
+static int dt2w_proc_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", pox_dt2w_get());
+	return 0;
+}
+
+static int dt2w_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dt2w_proc_show, NULL);
+}
+
+static ssize_t dt2w_proc_write(struct file *file, const char __user *buffer,
+			       size_t count, loff_t *pos)
+{
+	char buf[16];
+	int val;
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, buffer, count))
+		return -EFAULT;
+	buf[count] = '\0';
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	pox_dt2w_set(val);
+	return count;
+}
+
+static const struct file_operations dt2w_proc_fops = {
+	.open    = dt2w_proc_open,
+	.read    = seq_read,
+	.write   = dt2w_proc_write,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
+/* Analog Mic Gain Interface */
+extern int pox_mic_gain_get(void);
+extern int pox_mic_gain_set(int gain);
+
+static int mic_gain_proc_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", pox_mic_gain_get());
+	return 0;
+}
+
+static int mic_gain_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, mic_gain_proc_show, NULL);
+}
+
+static ssize_t mic_gain_proc_write(struct file *file, const char __user *buffer,
+				   size_t count, loff_t *pos)
+{
+	char buf[16];
+	int val;
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, buffer, count))
+		return -EFAULT;
+	buf[count] = '\0';
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	pox_mic_gain_set(val);
+	return count;
+}
+
+static const struct file_operations mic_gain_proc_fops = {
+	.open    = mic_gain_proc_open,
+	.read    = seq_read,
+	.write   = mic_gain_proc_write,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
+/* Dynamic Fsync Interface */
+extern int pox_dynamic_fsync_get(void);
+extern void pox_dynamic_fsync_set(int enable);
+
+static int dynamic_fsync_proc_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", pox_dynamic_fsync_get());
+	return 0;
+}
+
+static int dynamic_fsync_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dynamic_fsync_proc_show, NULL);
+}
+
+static ssize_t dynamic_fsync_proc_write(struct file *file, const char __user *buffer,
+					size_t count, loff_t *pos)
+{
+	char buf[16];
+	int val;
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, buffer, count))
+		return -EFAULT;
+	buf[count] = '\0';
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	pox_dynamic_fsync_set(val);
+	return count;
+}
+
+static const struct file_operations dynamic_fsync_proc_fops = {
+	.open    = dynamic_fsync_proc_open,
+	.read    = seq_read,
+	.write   = dynamic_fsync_proc_write,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
 /* ------------------ Init Function ------------------ */
 
 int init_gaming_mode(struct proc_dir_entry *parent)
@@ -917,6 +1169,30 @@ int init_gaming_mode(struct proc_dir_entry *parent)
 	entry = proc_create("headphone_gain", 0666, parent, &headphone_gain_proc_fops);
 	if (!entry)
 		pr_warn("Failed to create /proc/perfmgr/headphone_gain\n");
+
+	entry = proc_create("vibrator_strength", 0666, parent, &vibrator_strength_proc_fops);
+	if (!entry)
+		pr_warn("Failed to create /proc/perfmgr/vibrator_strength\n");
+
+	entry = proc_create("wakelock_blocker", 0666, parent, &wakelock_blocker_proc_fops);
+	if (!entry)
+		pr_warn("Failed to create /proc/perfmgr/wakelock_blocker\n");
+
+	entry = proc_create("fast_charge", 0666, parent, &fast_charge_proc_fops);
+	if (!entry)
+		pr_warn("Failed to create /proc/perfmgr/fast_charge\n");
+
+	entry = proc_create("dt2w", 0666, parent, &dt2w_proc_fops);
+	if (!entry)
+		pr_warn("Failed to create /proc/perfmgr/dt2w\n");
+
+	entry = proc_create("mic_gain", 0666, parent, &mic_gain_proc_fops);
+	if (!entry)
+		pr_warn("Failed to create /proc/perfmgr/mic_gain\n");
+
+	entry = proc_create("dynamic_fsync", 0666, parent, &dynamic_fsync_proc_fops);
+	if (!entry)
+		pr_warn("Failed to create /proc/perfmgr/dynamic_fsync\n");
 
 	ret = sysfs_create_file(kernel_kobj, &gaming_mode_kobj_attr.attr);
 	if (ret)
