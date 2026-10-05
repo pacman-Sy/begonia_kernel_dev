@@ -5250,3 +5250,6 @@ CONFIG_KSU=y
 
 # manual hook
 CONFIG_KSU_MANUAL_HOOK=y
+
+# NoMount
+CONFIG_NOMOUNT=y
