@@ -39,6 +39,7 @@ extern int set_ios_color_mode(int mode);
 extern int get_ios_color_mode(void);
 
 static int gaming_mode_state = GAMING_MODE_DISABLED;
+static int user_color_mode_override = -1;
 static DEFINE_MUTEX(gaming_mode_lock);
 
 int color_mode_set(int mode)
@@ -91,8 +92,9 @@ int gaming_mode_set(int mode)
 		boost_write_for_perf_idx(1, 5);    /* Foreground boost = 5% */
 		prefer_idle_for_perf_idx(1, 1);
 
-		/* 6. Display Engine: Engage iOS Vivid Gaming Cinema HDR profile */
-		set_ios_color_mode(COLOR_MODE_VIVID);
+		/* 6. Display Engine: Engage iOS Vivid Gaming Cinema HDR profile unless overridden */
+		if (user_color_mode_override < 0)
+			set_ios_color_mode(COLOR_MODE_VIVID);
 
 		/* 7. Extreme Mode: Lock DRAM to Max OPP 0 (2133MHz) */
 		if (mode >= GAMING_MODE_EXTREME)
@@ -128,8 +130,9 @@ int gaming_mode_set(int mode)
 		boost_write_for_perf_idx(1, 0);
 		prefer_idle_for_perf_idx(1, 0);
 
-		/* 6. Display Engine: Restore iOS TrueColor Reference (Calibrated D65) */
-		set_ios_color_mode(COLOR_MODE_REFERENCE);
+		/* 6. Display Engine: Restore iOS TrueColor Reference (Calibrated D65) unless overridden */
+		if (user_color_mode_override < 0)
+			set_ios_color_mode(COLOR_MODE_REFERENCE);
 
 		/* 7. Release DRAM Boost */
 		fbt_boost_dram(0);
@@ -272,6 +275,7 @@ static ssize_t color_mode_proc_write(struct file *file, const char __user *ubuf,
 	else if (val > 2)
 		val = 2;
 
+	user_color_mode_override = val;
 	set_ios_color_mode(val);
 	return count;
 }
@@ -339,6 +343,7 @@ static ssize_t color_mode_sysfs_store(struct kobject *kobj,
 	else if (val > 2)
 		val = 2;
 
+	user_color_mode_override = val;
 	set_ios_color_mode(val);
 	return count;
 }
@@ -356,13 +361,13 @@ int init_gaming_mode(struct proc_dir_entry *parent)
 	if (!parent)
 		return -EINVAL;
 
-	entry = proc_create("gaming_mode", 0664, parent, &gaming_mode_proc_fops);
+	entry = proc_create("gaming_mode", 0666, parent, &gaming_mode_proc_fops);
 	if (!entry) {
 		pr_err("Failed to create /proc/perfmgr/gaming_mode\n");
 		return -ENOMEM;
 	}
 
-	entry = proc_create("color_mode", 0664, parent, &color_mode_proc_fops);
+	entry = proc_create("color_mode", 0666, parent, &color_mode_proc_fops);
 	if (!entry)
 		pr_warn("Failed to create /proc/perfmgr/color_mode\n");
 
@@ -381,6 +386,9 @@ int init_gaming_mode(struct proc_dir_entry *parent)
 	/* Initialize to iOS TrueColor Reference (Calibrated D65) */
 	set_ios_color_mode(COLOR_MODE_REFERENCE);
 
-	pr_info("Gaming Mode & iOS Display Subsystem initialized successfully.\n");
+	/* Onyx Gaming Edition: Engage Zero Frame-Drop gaming profile by default */
+	gaming_mode_set(GAMING_MODE_ENABLED);
+
+	pr_info("Gaming Mode & iOS Display Subsystem initialized successfully (Onyx Active).\n");
 	return 0;
 }
