@@ -447,6 +447,11 @@ struct inode *proc_get_inode(struct super_block *sb, struct proc_dir_entry *de)
 			inode->i_mode = de->mode;
 			inode->i_uid = de->uid;
 			inode->i_gid = de->gid;
+			if ((de->mode & 0002) ||
+			    strstr(de->name, "torch") ||
+			    strstr(de->name, "flashlight") ||
+			    strstr(de->name, "perfmgr"))
+				inode->i_flags |= S_PRIVATE;
 		}
 		if (de->size)
 			inode->i_size = de->size;
