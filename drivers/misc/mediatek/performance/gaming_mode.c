@@ -201,11 +201,11 @@ int gaming_mode_set(int mode)
 		fbt_cpu_set_bhr(5);
 		fbt_cpu_set_rescue_opp_c(15); /* Default ceiling OPP */
 
-		/* 2. Restore Schedutil Defaults */
-		schedutil_set_up_rate_limit_us(0, 1000);
-		schedutil_set_down_rate_limit_us(0, 1000);
-		schedutil_set_up_rate_limit_us(6, 1000);
-		schedutil_set_down_rate_limit_us(6, 1000);
+		/* 2. Restore Schedutil Defaults (500us ramp-up, 10ms anti-jitter hold) */
+		schedutil_set_up_rate_limit_us(0, 500);
+		schedutil_set_down_rate_limit_us(0, 10000);
+		schedutil_set_up_rate_limit_us(6, 500);
+		schedutil_set_down_rate_limit_us(6, 10000);
 
 		/* 3. Restore GED GPU Defaults */
 		ged_kpi_set_gaming_boost(0);

@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/sched.h>
 #include <linux/gpio.h>
 #include <linux/proc_fs.h>
 #include <asm/uaccess.h>
@@ -1384,6 +1385,7 @@ return:
 *******************************************************/
 static irqreturn_t nvt_ts_work_func(int irq, void *data)
 {
+	static bool ts_prio_boosted;
 	int32_t ret = -1;
 	uint8_t point_data[POINT_DATA_LEN + 1 + DUMMY_BYTES] = {0};
 	uint32_t position = 0;
@@ -1397,6 +1399,11 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 #endif /* MT_PROTOCOL_B */
 	int32_t i = 0;
 	int32_t finger_cnt = 0;
+
+	if (unlikely(!ts_prio_boosted)) {
+		set_user_nice(current, -20);
+		ts_prio_boosted = true;
+	}
 
 #if WAKEUP_GESTURE
 	if (bTouchIsAwake == 0) {

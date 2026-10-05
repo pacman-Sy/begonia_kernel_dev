@@ -54,9 +54,8 @@ static void ppm_lcmoff_update_limit_cb(void)
 
 	ppm_clear_policy_limit(&lcmoff_policy);
 
-	/* only apply min freq for LL cluster */
+	/* Apply min frequency for Little cluster (allow idling down to 500MHz) */
 	for (i = 0; i < 1; i++) {
-	/* for (i = 0; i < lcmoff_policy.req.cluster_num; i++) { */
 		if (lcmoff_policy.req.limit[i].min_cpufreq_idx != -1) {
 			int idx = ppm_main_freq_to_idx(i,
 				lcmoff_min_freq,
@@ -66,6 +65,13 @@ static void ppm_lcmoff_update_limit_cb(void)
 				MIN(lcmoff_policy.req.limit[i].min_cpufreq_idx,
 				idx);
 		}
+	}
+
+	/* Cap Big cluster (Cortex-A76) to 1.5GHz during screen off to eliminate pocket drain */
+	if (lcmoff_policy.req.cluster_num > 1) {
+		int b_idx = ppm_main_freq_to_idx(1, 1500000, CPUFREQ_RELATION_L);
+		if (b_idx >= 0)
+			lcmoff_policy.req.limit[1].max_cpufreq_idx = b_idx;
 	}
 
 	FUNC_EXIT(FUNC_LV_POLICY);
@@ -217,11 +223,12 @@ static int __init ppm_lcmoff_policy_init(void)
 		goto out;
 	}
 
-#ifdef LCMOFF_MIN_FREQ
-	lcmoff_min_freq = LCMOFF_MIN_FREQ;
-#else
-	lcmoff_policy.is_enabled = false;
+#ifndef LCMOFF_MIN_FREQ
+#define LCMOFF_MIN_FREQ 500000
 #endif
+
+	lcmoff_min_freq = LCMOFF_MIN_FREQ;
+	lcmoff_policy.is_enabled = true;
 
 	ppm_info("@%s: register %s done!\n", __func__, lcmoff_policy.name);
 
