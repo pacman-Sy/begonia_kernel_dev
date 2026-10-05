@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2026 Pox Kernel Project - TXO R <ravtx12best@gmail.com>
+ * Copyright (C) 2026 Pox Kernel Project - TXO R
  * Dedicated Pox Zero Frame-Drop Gaming Mode Controller for Redmi Note 8 Pro (begonia)
  *
  * Coordinates MediaTek FPSGO Ultra-Rescue, GED GPU Instant Boost,
