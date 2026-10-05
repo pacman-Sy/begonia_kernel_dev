@@ -9,19 +9,27 @@
 
 #include <linux/proc_fs.h>
 
-#define GAMING_MODE_DISABLED 0
-#define GAMING_MODE_ENABLED  1
-#define GAMING_MODE_EXTREME  2
+#define GAMING_MODE_POWERSAVE -1
+#define GAMING_MODE_DISABLED   0
+#define GAMING_MODE_ENABLED    1
+#define GAMING_MODE_EXTREME    2
 
 #define COLOR_MODE_STANDARD  0
 #define COLOR_MODE_REFERENCE 1
 #define COLOR_MODE_VIVID     2
 #define COLOR_MODE_SLOG3     3
 
+#define HBM_MODE_OFF         0
+#define HBM_MODE_L1          1
+#define HBM_MODE_L2          2
+#define HBM_MODE_L3          3
+
 int gaming_mode_set(int mode);
 int gaming_mode_get(void);
 int color_mode_set(int mode);
 int color_mode_get(void);
+int hbm_mode_set(int mode);
+int hbm_mode_get(void);
 int camera_4k60_set(int force);
 int camera_4k60_get(void);
 int camera_slog3_set(int enable);

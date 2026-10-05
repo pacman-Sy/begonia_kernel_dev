@@ -130,6 +130,21 @@ void pox_camera_launch_boost(int enable)
 }
 EXPORT_SYMBOL(pox_camera_launch_boost);
 
+extern int pox_lm36273_hbm_set(int mode);
+extern int pox_lm36273_hbm_get(void);
+
+int hbm_mode_set(int mode)
+{
+	return pox_lm36273_hbm_set(mode);
+}
+EXPORT_SYMBOL(hbm_mode_set);
+
+int hbm_mode_get(void)
+{
+	return pox_lm36273_hbm_get();
+}
+EXPORT_SYMBOL(hbm_mode_get);
+
 int gaming_mode_set(int mode)
 {
 	mutex_lock(&gaming_mode_lock);
@@ -191,6 +206,57 @@ int gaming_mode_set(int mode)
 		}
 
 		pr_info("Gaming Mode activated: Zero frame-drop profile engaged.\n");
+	} else if (mode == GAMING_MODE_POWERSAVE) {
+		pr_info("Activating Ultra Power Saver Profile (level -1)...\n");
+
+		/* 1. Low-Power FPSGO */
+		fbt_cpu_set_ultra_rescue(0);
+		fbt_cpu_set_rescue_percent(50);
+		fbt_cpu_set_variance(50);
+		fbt_cpu_set_bhr(0);
+		fbt_cpu_set_rescue_opp_c(15);
+
+		/* 2. Schedutil Debounced Ramp-Up & Fast Down */
+		schedutil_set_up_rate_limit_us(0, 2000);   /* 2ms debounce on Little A55 */
+		schedutil_set_down_rate_limit_us(0, 2000);
+		schedutil_set_up_rate_limit_us(6, 5000);   /* 5ms debounce before Big A76 */
+		schedutil_set_down_rate_limit_us(6, 1000); /* Fast return to idle */
+
+		/* 3. Disable GPU Boost & Margin */
+		ged_kpi_set_gaming_boost(0);
+		ged_dvfs_set_gaming_boost(0);
+
+		/* 4. PPM COBRA Power-First Hint */
+		eara_pass_perf_first_hint(0);
+
+		/* 5. Minimal SchedTune QoS */
+		boost_write_for_perf_idx(3, 0);
+		prefer_idle_for_perf_idx(3, 0);
+		boost_write_for_perf_idx(1, 0);
+		prefer_idle_for_perf_idx(1, 0);
+
+		/* 6. Display Engine: Standard / Calibrated D65 */
+		if (user_color_mode_override < 0)
+			set_ios_color_mode(COLOR_MODE_REFERENCE);
+
+		/* 7. Release DRAM Boost */
+		fbt_boost_dram(0);
+
+		/* 8. Restore Touchscreen Low-Power */
+		{
+			extern int pox_touch_game_mode_set(int enable);
+			extern int pox_touch_sensitivity_set(int val);
+			pox_touch_game_mode_set(0);
+			pox_touch_sensitivity_set(0);
+		}
+
+		/* 9. EAS Schedutil Headroom Margin: 10% minimal headroom, packing tasks on A55 Little cores */
+		{
+			extern void set_capacity_margin(unsigned int margin);
+			set_capacity_margin(1126);
+		}
+
+		pr_info("Ultra Power Saver Profile engaged: Maximum battery preservation.\n");
 	} else {
 		pr_info("Deactivating Gaming Mode: Restoring Balanced Profile...\n");
 
@@ -274,21 +340,26 @@ static int gaming_mode_proc_show(struct seq_file *m, void *v)
 		seq_printf(m, "status: EXTREME GAMING MODE (Locked Max DRAM OPP + Zero Frame Drops)\n");
 	else if (state == GAMING_MODE_ENABLED)
 		seq_printf(m, "status: GAMING MODE ACTIVE (Zero Frame Drops Enabled)\n");
+	else if (state == GAMING_MODE_POWERSAVE)
+		seq_printf(m, "status: ULTRA POWER SAVER PROFILE (10%% Headroom + Little Core Affinity + Max Battery)\n");
 	else
 		seq_printf(m, "status: BALANCED PROFILE (iOS Fluidity & Real Colors Active)\n");
 
 	seq_printf(m, "features:\n");
-	seq_printf(m, "  - ultra_rescue: %s\n", state ? "enabled (DRAM boost on hitch)" : "disabled");
-	seq_printf(m, "  - rescue_percent: %d%%\n", state ? 20 : 33);
-	seq_printf(m, "  - variance_sensitivity: %d\n", state ? 15 : 40);
-	seq_printf(m, "  - big_core_hold_rate (bhr): %d\n", state ? 15 : 5);
-	seq_printf(m, "  - schedutil_ramp_up: %d us\n", state ? 500 : 1000);
-	seq_printf(m, "  - schedutil_hold_down: %d us\n", state ? 20000 : 1000);
-	seq_printf(m, "  - gpu_touch_boost: %s\n", state ? "enabled" : "disabled");
-	seq_printf(m, "  - gpu_dvfs_margin: %s\n", state ? "+20% (PERF)" : "default");
-	seq_printf(m, "  - ppm_cobra_budget: %s\n", state ? "Performance-First (A76 prioritized)" : "Balanced");
-	seq_printf(m, "  - top_app_boost: %d%%\n", state ? 20 : 5);
-	seq_printf(m, "  - top_app_prefer_idle: enabled\n");
+	seq_printf(m, "  - ultra_rescue: %s\n", (state > 0) ? "enabled (DRAM boost on hitch)" : "disabled");
+	seq_printf(m, "  - rescue_percent: %d%%\n", (state > 0) ? 20 : (state < 0 ? 50 : 33));
+	seq_printf(m, "  - variance_sensitivity: %d\n", (state > 0) ? 15 : (state < 0 ? 50 : 40));
+	seq_printf(m, "  - big_core_hold_rate (bhr): %d\n", (state > 0) ? 15 : (state < 0 ? 0 : 5));
+	seq_printf(m, "  - schedutil_ramp_up: %d us\n", (state > 0) ? 500 : (state < 0 ? 2000 : 500));
+	seq_printf(m, "  - schedutil_hold_down: %d us\n", (state > 0) ? 20000 : (state < 0 ? 2000 : 10000));
+	seq_printf(m, "  - gpu_touch_boost: %s\n", (state > 0) ? "enabled" : (state < 0 ? "powersave" : "balanced"));
+	seq_printf(m, "  - gpu_dvfs_margin: %s\n", (state > 0) ? "+20% (PERF)" : "default");
+	seq_printf(m, "  - ppm_cobra_budget: %s\n", (state > 0) ? "Performance-First (A76 prioritized)" : (state < 0 ? "Power-First (A55 Little packed)" : "Balanced"));
+	seq_printf(m, "  - top_app_boost: %d%%\n", (state > 0) ? 20 : (state < 0 ? 0 : 5));
+	seq_printf(m, "  - eas_capacity_margin: %d (%d%% headroom)\n",
+		(state > 0) ? 1350 : (state < 0 ? 1126 : 1280),
+		(state > 0) ? 32 : (state < 0 ? 10 : 25));
+	seq_printf(m, "  - top_app_prefer_idle: %s\n", (state < 0) ? "disabled (pack to Little)" : "enabled");
 	seq_printf(m, "  - color_mode: %d (%s)\n", color_st,
 		(color_st == COLOR_MODE_SLOG3) ? "Sony S-Log3 / Cinema Flat Profile (LUT Grading)" :
 		(color_st == COLOR_MODE_VIVID) ? "iOS Vivid / Gaming Cinema" :
@@ -325,6 +396,10 @@ static ssize_t gaming_mode_proc_write(struct file *file, const char __user *ubuf
 		val = GAMING_MODE_ENABLED;
 	} else if (strcasecmp(buf, "2") == 0 || strcasecmp(buf, "extreme") == 0) {
 		val = GAMING_MODE_EXTREME;
+	} else if (strcasecmp(buf, "-1") == 0 || strcasecmp(buf, "powersave") == 0 ||
+		   strcasecmp(buf, "power_save") == 0 || strcasecmp(buf, "saver") == 0 ||
+		   strcasecmp(buf, "battery") == 0) {
+		val = GAMING_MODE_POWERSAVE;
 	} else if (strcasecmp(buf, "0") == 0 || strcasecmp(buf, "off") == 0 ||
 		   strcasecmp(buf, "disable") == 0 || strcasecmp(buf, "false") == 0) {
 		val = GAMING_MODE_DISABLED;
@@ -405,6 +480,72 @@ static const struct file_operations color_mode_proc_fops = {
 	.open    = color_mode_proc_open,
 	.read    = seq_read,
 	.write   = color_mode_proc_write,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
+static int hbm_mode_proc_show(struct seq_file *m, void *v)
+{
+	int mode = hbm_mode_get();
+
+	seq_printf(m, "hbm_mode: %d\n", mode);
+	if (mode == HBM_MODE_L3)
+		seq_printf(m, "status: SUNLIGHT HBM LEVEL 3 (27.5mA Peak Overdrive ~550+ nits)\n");
+	else if (mode == HBM_MODE_L2)
+		seq_printf(m, "status: SUNLIGHT HBM LEVEL 2 (25.3mA High Brightness ~500 nits)\n");
+	else if (mode == HBM_MODE_L1)
+		seq_printf(m, "status: SUNLIGHT HBM LEVEL 1 (22.0mA Daylight Boost ~450 nits)\n");
+	else
+		seq_printf(m, "status: NORMAL / AUTO (Standard Backlight Curve 0..2047)\n");
+
+	return 0;
+}
+
+static ssize_t hbm_mode_proc_write(struct file *file, const char __user *ubuf,
+				   size_t count, loff_t *ppos)
+{
+	char buf[16];
+	int val = 0;
+	size_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+
+	while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r' || isspace(buf[len - 1])))
+		buf[--len] = '\0';
+
+	if (strcasecmp(buf, "3") == 0 || strcasecmp(buf, "max") == 0 ||
+	    strcasecmp(buf, "overdrive") == 0 || strcasecmp(buf, "l3") == 0) {
+		val = HBM_MODE_L3;
+	} else if (strcasecmp(buf, "2") == 0 || strcasecmp(buf, "l2") == 0) {
+		val = HBM_MODE_L2;
+	} else if (strcasecmp(buf, "1") == 0 || strcasecmp(buf, "l1") == 0 ||
+		   strcasecmp(buf, "on") == 0 || strcasecmp(buf, "enable") == 0) {
+		val = HBM_MODE_L1;
+	} else if (strcasecmp(buf, "0") == 0 || strcasecmp(buf, "off") == 0 ||
+		   strcasecmp(buf, "disable") == 0) {
+		val = HBM_MODE_OFF;
+	} else {
+		if (kstrtoint(buf, 10, &val) < 0)
+			return -EINVAL;
+	}
+
+	hbm_mode_set(val);
+	return count;
+}
+
+static int hbm_mode_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hbm_mode_proc_show, NULL);
+}
+
+static const struct file_operations hbm_mode_proc_fops = {
+	.owner   = THIS_MODULE,
+	.open    = hbm_mode_proc_open,
+	.read    = seq_read,
+	.write   = hbm_mode_proc_write,
 	.llseek  = seq_lseek,
 	.release = single_release,
 };
@@ -600,6 +741,28 @@ static struct kobj_attribute color_mode_kobj_attr =
 
 static struct kobj_attribute camera_profile_kobj_attr =
 	__ATTR(camera_profile, 0664, color_mode_sysfs_show, color_mode_sysfs_store);
+
+static ssize_t hbm_mode_sysfs_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", hbm_mode_get());
+}
+
+static ssize_t hbm_mode_sysfs_store(struct kobject *kobj,
+				    struct kobj_attribute *attr,
+				    const char *buf, size_t count)
+{
+	int val = 0;
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	hbm_mode_set(val);
+	return count;
+}
+
+static struct kobj_attribute hbm_mode_kobj_attr =
+	__ATTR(hbm_mode, 0664, hbm_mode_sysfs_show, hbm_mode_sysfs_store);
 
 static ssize_t camera_4k60_sysfs_show(struct kobject *kobj,
 				      struct kobj_attribute *attr, char *buf)
@@ -1206,6 +1369,10 @@ int init_gaming_mode(struct proc_dir_entry *parent)
 	if (!entry)
 		pr_warn("Failed to create /proc/perfmgr/dynamic_fsync\n");
 
+	entry = proc_create("hbm_mode", 0666, parent, &hbm_mode_proc_fops);
+	if (!entry)
+		pr_warn("Failed to create /proc/perfmgr/hbm_mode\n");
+
 	ret = sysfs_create_file(kernel_kobj, &gaming_mode_kobj_attr.attr);
 	if (ret)
 		pr_warn("Failed to create /sys/kernel/gaming_mode (ret=%d)\n", ret);
@@ -1217,6 +1384,12 @@ int init_gaming_mode(struct proc_dir_entry *parent)
 		pr_warn("Failed to create /sys/kernel/color_mode (ret=%d)\n", ret);
 	else
 		pr_info("/sys/kernel/color_mode created successfully\n");
+
+	ret = sysfs_create_file(kernel_kobj, &hbm_mode_kobj_attr.attr);
+	if (ret)
+		pr_warn("Failed to create /sys/kernel/hbm_mode (ret=%d)\n", ret);
+	else
+		pr_info("/sys/kernel/hbm_mode created successfully\n");
 
 	ret = sysfs_create_file(kernel_kobj, &camera_profile_kobj_attr.attr);
 	if (ret)

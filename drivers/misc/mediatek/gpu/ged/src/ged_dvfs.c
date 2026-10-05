@@ -2391,6 +2391,8 @@ void ged_dvfs_set_gaming_boost(int enable)
 	else
 		ged_dvfs_margin_value(-1);  /* Default margin */
 #endif
+	/* Signal Gaming Accelerator Scenario (GAS) to Wi-Fi WLAN gen4m low-latency engine */
+	ged_dvfs_vsync_offset_event_switch(GED_DVFS_VSYNC_OFFSET_GAS_EVENT, enable ? GED_TRUE : GED_FALSE);
 }
 EXPORT_SYMBOL(ged_dvfs_set_gaming_boost);
 #endif
