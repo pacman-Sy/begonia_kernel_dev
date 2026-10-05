@@ -590,6 +590,9 @@ static bool is_blocked_wakelock(const char *name)
 	if (strcmp(name, "wlan_wake") == 0 ||
 	    strcmp(name, "wlan_wow_wl") == 0 ||
 	    strcmp(name, "wlan_extscan_wl") == 0 ||
+	    strcmp(name, "wlan_rx_wake") == 0 ||
+	    strcmp(name, "sensor_ind") == 0 ||
+	    strcmp(name, "ccci_fsm") == 0 ||
 	    strcmp(name, "netmgr_wl") == 0 ||
 	    strcmp(name, "pno_wl") == 0 ||
 	    strcmp(name, "wmt_wl") == 0)
