@@ -184,6 +184,11 @@ static int gaming_mode_proc_show(struct seq_file *m, void *v)
 		(color_st == COLOR_MODE_REFERENCE) ? "iOS TrueColor Reference (Calibrated D65)" : "Standard Neutral");
 	seq_printf(m, "  - video_clock_floor: active (anti-lag enabled)\n");
 	seq_printf(m, "  - display_ddr_floor: LP4-2100 minimum\n");
+	seq_printf(m, "  - cfs_latency: 4 ms (500 us preemption, unscaled)\n");
+	seq_printf(m, "  - timer_hz: %d Hz (3.33 ms jiffy, display-synced)\n", HZ);
+	seq_printf(m, "  - io_scheduler: deadline (guaranteed UFS read latency)\n");
+	seq_printf(m, "  - tcp_congestion: bbr (low bufferbloat)\n");
+	seq_printf(m, "  - hardware_touch_boost: enabled (A55@1.50GHz / A76@1.53GHz + 60%% TA uclamp)\n");
 	return 0;
 }
 

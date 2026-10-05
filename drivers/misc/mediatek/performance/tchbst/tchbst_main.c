@@ -24,10 +24,8 @@ int init_tchbst(struct proc_dir_entry *parent)
 	/*create touch root procfs*/
 	tchbst_root = proc_mkdir("tchbst", parent);
 
-#ifdef CONFIG_MTK_PERFMGR_TOUCH_BOOST
-	/*initial kernel touch parameter*/
+	/* initial kernel hardware touch boost */
 	init_ktch(tchbst_root);
-#endif
 #if defined(CONFIG_MTK_FPSGO) || defined(CONFIG_MTK_FPSGO_V3)
 	/*initial user touch parameter*/
 	init_utch(tchbst_root);
