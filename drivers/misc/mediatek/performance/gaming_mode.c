@@ -184,6 +184,12 @@ int gaming_mode_set(int mode)
 			pox_touch_sensitivity_set(1);
 		}
 
+		/* 9. EAS Schedutil Headroom Margin: 32% headroom */
+		{
+			extern void set_capacity_margin(unsigned int margin);
+			set_capacity_margin(1350);
+		}
+
 		pr_info("Gaming Mode activated: Zero frame-drop profile engaged.\n");
 	} else {
 		pr_info("Deactivating Gaming Mode: Restoring Balanced Profile...\n");
@@ -227,6 +233,12 @@ int gaming_mode_set(int mode)
 			extern int pox_touch_sensitivity_set(int val);
 			pox_touch_game_mode_set(0);
 			pox_touch_sensitivity_set(0);
+		}
+
+		/* 9. Restore Default EAS Schedutil Headroom Margin: 25% default */
+		{
+			extern void set_capacity_margin(unsigned int margin);
+			set_capacity_margin(1280);
 		}
 
 		pr_info("Gaming Mode deactivated: Balanced Profile restored.\n");
