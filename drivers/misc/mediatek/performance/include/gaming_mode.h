@@ -36,6 +36,8 @@ int camera_slog3_set(int enable);
 int camera_slog3_get(void);
 void pox_camera_launch_boost(int enable);
 int pox_gaming_mode_get(void);
+int torch_brightness_set(int val);
+int torch_brightness_get(void);
 int init_gaming_mode(struct proc_dir_entry *parent);
 
 #endif /* _GAMING_MODE_H_ */

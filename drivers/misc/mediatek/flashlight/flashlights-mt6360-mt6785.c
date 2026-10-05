@@ -777,36 +777,109 @@ static struct flashlight_operations mt6360_ops = {
 
 
 /******************************************************************************
- * Torch brightness sysfs
+ * Pox Kernel Rootless Torch Brightness Grading Subsystem
  *****************************************************************************/
+static DEFINE_MUTEX(pox_torch_lock);
+static int pox_torch_active;
+static int pox_torch_current_val;
+static int flash_is_use;
 static int mt6360_torch_level_sysfs;
 
-static void mt6360_torch_enable_sysfs(int level_idx)
+static int pox_torch_val_to_sel(int val)
 {
+	/*
+	 * Map brightness input value to MT6360 hardware torch current selector (0..24)
+	 * Current per channel = 25mA + (selector * 12.5mA)
+	 * Selector 0 = 25mA, Selector 6 = 100mA, Selector 24 = 325mA (650mA dual)
+	 */
+	static const u8 step10_table[11] = {
+		0,  /* 0 - off */
+		0,  /* 1:  25.0 mA (bedside reading / dim torch) */
+		2,  /* 2:  50.0 mA */
+		4,  /* 3:  75.0 mA */
+		6,  /* 4: 100.0 mA (stock Xiaomi torch level) */
+		9,  /* 5: 137.5 mA */
+		12, /* 6: 175.0 mA */
+		15, /* 7: 212.5 mA */
+		18, /* 8: 250.0 mA */
+		21, /* 9: 287.5 mA */
+		24, /* 10: 325.0 mA (overdrive continuous max) */
+	};
+
+	if (val <= 0)
+		return 0;
+	if (val <= 10)
+		return step10_table[val];
+	if (val <= 24)
+		return val; /* direct selector */
+	if (val <= 100)
+		return (val * 24) / 100; /* percentage scale 25..100% -> 6..24 */
+	if (val <= 255)
+		return (val * 24) / 255; /* 8-bit scale 101..255 -> 9..24 */
+
+	return 24; /* clamp safe thermal ceiling */
+}
+
+int pox_torch_brightness_get(void)
+{
+	return pox_torch_current_val;
+}
+EXPORT_SYMBOL(pox_torch_brightness_get);
+
+int pox_torch_brightness_set(int value)
+{
+	int sel;
+
 	if (!flashlight_dev_ch1 || !flashlight_dev_ch2) {
-		pr_info("Failed to enable torch: device not ready.\n");
-		return;
+		pr_info("[POX_TORCH] Flashlight devices not ready\n");
+		return -ENODEV;
+	}
+
+	mutex_lock(&pox_torch_lock);
+
+	if (value <= 0) {
+		/* Turn torch OFF */
+		if (pox_torch_active || flash_is_use) {
+			mt6360_disable(MT6360_CHANNEL_CH1);
+			mt6360_disable(MT6360_CHANNEL_CH2);
+			mt6360_set_driver(0);
+			pox_torch_active = 0;
+			flash_is_use = 0;
+		}
+		pox_torch_current_val = 0;
+		mt6360_torch_level_sysfs = 0;
+		mutex_unlock(&pox_torch_lock);
+		return 0;
+	}
+
+	/* Turn torch ON or update graded level */
+	sel = pox_torch_val_to_sel(value);
+
+	if (!pox_torch_active) {
+		mt6360_set_driver(1);
+		pox_torch_active = 1;
 	}
 
 	mt6360_decouple_mode = FLASHLIGHT_SCENARIO_COUPLE;
 
-	flashlight_set_torch_brightness(
-		flashlight_dev_ch1, mt6360_torch_level[level_idx]);
+	flashlight_set_torch_brightness(flashlight_dev_ch1, sel);
 	mt6360_timeout_ms[MT6360_CHANNEL_CH1] = 0;
 	mt6360_en_ch1 = MT6360_ENABLE_TORCH;
 
-	flashlight_set_torch_brightness(
-		flashlight_dev_ch2, mt6360_torch_level[level_idx]);
+	flashlight_set_torch_brightness(flashlight_dev_ch2, sel);
 	mt6360_timeout_ms[MT6360_CHANNEL_CH2] = 0;
 	mt6360_en_ch2 = MT6360_ENABLE_TORCH;
 
 	mt6360_enable();
-}
 
-static void mt6360_torch_disable_sysfs(void)
-{
-	mt6360_disable(MT6360_CHANNEL_ALL);
+	flash_is_use = 1;
+	pox_torch_current_val = value;
+	mt6360_torch_level_sysfs = value;
+
+	mutex_unlock(&pox_torch_lock);
+	return 0;
 }
+EXPORT_SYMBOL(pox_torch_brightness_set);
 
 static ssize_t torchbrightness_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
@@ -816,22 +889,7 @@ static ssize_t torchbrightness_store(struct device *dev,
 	if (kstrtoint(buf, 0, &value))
 		return -EINVAL;
 
-	if (value < 0)
-		value = 0;
-	else if (value > MT6360_LEVEL_TORCH)
-		value = MT6360_LEVEL_TORCH;
-
-	if (value > 0 && mt6360_torch_level_sysfs > 0) {
-		mt6360_torch_disable_sysfs();
-		mt6360_torch_enable_sysfs(value - 1);
-	} else if (value > 0 && mt6360_torch_level_sysfs == 0) {
-		mt6360_set_driver(1);
-		mt6360_torch_enable_sysfs(value - 1);
-	} else if (value == 0 && mt6360_torch_level_sysfs > 0) {
-		mt6360_torch_disable_sysfs();
-		mt6360_set_driver(0);
-	}
-	mt6360_torch_level_sysfs = value;
+	pox_torch_brightness_set(value);
 
 	return size;
 }
@@ -839,22 +897,13 @@ static ssize_t torchbrightness_store(struct device *dev,
 static ssize_t torchbrightness_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%d\n", mt6360_torch_level_sysfs);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", pox_torch_brightness_get());
 }
 
 /*
- * World-writable torch brightness node. The stock DEVICE_ATTR_RW() mode (0644)
- * restricts writes to root, which forces every torch app on the device to
- * escalate. Expose the knob to unprivileged writers (apps can now set torch
- * brightness directly, no su/Magisk needed); reads stay world-readable.
- * Writes are clamped in torchbrightness_store() regardless of caller.
- *
- * The mode is set through a plain struct initializer on purpose: this kernel's
- * VERIFY_OCTAL_PERMISSIONS() (include/linux/kernel.h) rejects the
- * other-writable bit (BUILD_BUG_ON_ZERO((perms) & 2)) at compile time, so
- * 0666 cannot pass through DEVICE_ATTR()/__ATTR(). Declaring the attribute
- * directly keeps the exact same runtime object (dev_attr_torchbrightness) the
- * probe/remove code below already references.
+ * World-writable torch brightness node. Expose the knob to unprivileged writers
+ * (apps can now set torch brightness directly, no su/Magisk needed);
+ * reads stay world-readable. Writes are graded and clamped in pox_torch_brightness_set().
  */
 static struct device_attribute dev_attr_torchbrightness = {
 	.attr	= { .name = "torchbrightness", .mode = 0666 },
@@ -921,8 +970,6 @@ err_node_put:
 	of_node_put(cnp);
 	return -EINVAL;
 }
-
-static int flash_is_use;
 
 static void  mt6360_flash2_brightness_set(struct led_classdev *led_cdev,
 		enum led_brightness value)
@@ -999,123 +1046,18 @@ static void mt6360_flash_brightness_set(struct led_classdev *led_cdev,
 static void mt6360_torch_brightness_set(struct led_classdev *led_cdev,
 		enum led_brightness value)
 {
-	struct flashlight_arg arg;
-	memset(&arg, 0, sizeof(struct flashlight_arg));
-	arg.channel = 0;
-	 mt6360_disable(MT6360_CHANNEL_CH1);
-	 mt6360_disable(MT6360_CHANNEL_CH2);
-
-	if (LED_OFF == value) {
-		arg.level = 0;
-		if (flash_is_use) {
-			pr_info("disable flashlight");
-			flash_is_use = 0;
-			mt6360_operate(MT6360_CHANNEL_CH1, MT6360_DISABLE);
-			mt6360_operate(MT6360_CHANNEL_CH2, MT6360_DISABLE);
-			mt6360_set_driver(0);
-		}
-	} else if ((value > 0) && (value <= 3)) {
-			if (value > 3 && value < 255) {
-				value = value - 3;
-				if (value > 16) {
-					value = 16;
-			}
-			arg.level = value;
-	} else if (value < 0) {
-		mt6360_operate(arg.channel, MT6360_DISABLE);
-		mt6360_set_driver(0);
-		return;
-	} else {
-		arg.level = 3; //torch current 125ma
-	}
-//torch mode
-
-	if (0 == strcmp(led_cdev->name, "torch-light0")) {
-		arg.channel = MT6360_CHANNEL_CH1;
-		if ((value > 0) && (value <= 3)) {
-			arg.level = value;
-		} else {
-			arg.level = 3;
-		}
-	} else if (0 == strcmp(led_cdev->name, "torch-light1")) {
-		arg.channel = MT6360_CHANNEL_CH2;
-		if ((value > 0) && (value <= 3)) {
-			arg.level = value;
-		} else {
-		arg.level = 3;
-		}
-	}
-
-//	mt6360_set_driver(1);
-
-#if 1
-	if (arg.channel == MT6360_CHANNEL_CH1) {
-		flashlight_set_torch_brightness (
-		flashlight_dev_ch1, mt6360_torch_level[arg.level]);
-		mt6360_timeout_ms[MT6360_CHANNEL_CH1] = 0;
-		mt6360_en_ch1 = MT6360_ENABLE_TORCH;
-		mt6360_operate(MT6360_CHANNEL_CH2, MT6360_DISABLE);
-	} else if (arg.channel == MT6360_CHANNEL_CH2) {
-		flashlight_set_torch_brightness (
-		flashlight_dev_ch2, mt6360_torch_level[arg.level]);
-		mt6360_timeout_ms[MT6360_CHANNEL_CH2] = 0;
-		mt6360_en_ch2 = MT6360_ENABLE_TORCH;
-		mt6360_operate(MT6360_CHANNEL_CH1, MT6360_DISABLE);
-	}
-#endif
-
-//	mt6360_enable();
-	}
-
-	return;
+	pox_torch_brightness_set((int)value);
 }
 
 static void mt6360_torch2_brightness_set(struct led_classdev *led_cdev,
 		enum led_brightness value)
 {
-	struct flashlight_arg arg;
-	memset(&arg, 0, sizeof(struct flashlight_arg));
-	arg.channel = 0;
-	mt6360_disable(MT6360_CHANNEL_CH1);
-	mt6360_disable(MT6360_CHANNEL_CH2);
+	pox_torch_brightness_set((int)value);
+}
 
-	if (LED_OFF == value) {
-		arg.level = 0;
-		if (flash_is_use) {
-			pr_info("disable flashlight");
-			flash_is_use = 0;
-			mt6360_operate(MT6360_CHANNEL_CH1, MT6360_DISABLE);
-			mt6360_operate(MT6360_CHANNEL_CH2, MT6360_DISABLE);
-			mt6360_set_driver(0);
-		}
-	} else if ((value > 0) && (value <= 3)) {
-			arg.level = value;
-	} else if (value < 0) {
-		mt6360_operate(arg.channel, MT6360_DISABLE);
-		mt6360_set_driver(0);
-		return;
-	} else if ((value > 3) || (value < 255)) {
-		arg.level = 3; //torch current 200ma
-	}
-
-	mt6360_set_driver(1);
-	mt6360_operate(MT6360_CHANNEL_CH1, MT6360_DISABLE);
-	mt6360_operate(MT6360_CHANNEL_CH2, MT6360_DISABLE);
-
-	if (0 == strcmp(led_cdev->name, "torch-light2")) {
-		flashlight_set_torch_brightness(
-			flashlight_dev_ch1, mt6360_torch_level[arg.level]);
-			mt6360_timeout_ms[MT6360_CHANNEL_CH1] = 0;
-			mt6360_en_ch1 = MT6360_ENABLE_TORCH;
-			flashlight_set_torch_brightness(
-				flashlight_dev_ch2, mt6360_torch_level[arg.level]);
-			mt6360_timeout_ms[MT6360_CHANNEL_CH2] = 0;
-			mt6360_en_ch2 = MT6360_ENABLE_TORCH;
-
-		  mt6360_enable();
-	}
-
-	return;
+static enum led_brightness pox_torch_brightness_get_led(struct led_classdev *led_cdev)
+{
+	return (enum led_brightness)pox_torch_brightness_get();
 }
 
 static enum led_brightness mtk_pmic_flashlight_brightness_get(struct led_classdev *led_cdev)
@@ -1144,20 +1086,33 @@ static struct led_classdev mtk_flash_led[MT6360_CHANNEL_NUM + 1] = {
 	},
 };
 
-static struct led_classdev mtk_torch_led[MT6360_CHANNEL_NUM + 1] = {
+static struct led_classdev mtk_torch_led[] = {
 	{
 		.name = "torch-light0",
 		.brightness_set = mt6360_torch_brightness_set,
+		.brightness_get = pox_torch_brightness_get_led,
+		.max_brightness = 255,
 		.brightness = LED_OFF,
 	},
 	{
 		.name = "torch-light1",
 		.brightness_set = mt6360_torch_brightness_set,
+		.brightness_get = pox_torch_brightness_get_led,
+		.max_brightness = 255,
 		.brightness = LED_OFF,
 	},
 	{
 		.name = "torch-light2",
 		.brightness_set = mt6360_torch2_brightness_set,
+		.brightness_get = pox_torch_brightness_get_led,
+		.max_brightness = 255,
+		.brightness = LED_OFF,
+	},
+	{
+		.name = "flashlight",
+		.brightness_set = mt6360_torch2_brightness_set,
+		.brightness_get = pox_torch_brightness_get_led,
+		.max_brightness = 255,
 		.brightness = LED_OFF,
 	},
 };
@@ -1168,16 +1123,16 @@ static int32_t mtk_flashlight_create_torch_classdev(struct platform_device *pdev
 	int32_t rc = 0;
 	int32_t i = 0;
 
-	for (i = 0; i <= pdata->channel_num; i++) {
-		mt6360_torch_brightness_set(&mtk_torch_led[i],
+	for (i = 0; i < ARRAY_SIZE(mtk_torch_led); i++) {
+		mt6360_torch2_brightness_set(&mtk_torch_led[i],
 			LED_OFF);
-			rc = led_classdev_register(&pdev->dev,
-				&mtk_torch_led[i]);
-			if (rc) {
-				pr_err("Failed to register %d led dev. rc = %d\n",
-					i, rc);
-				return rc;
-			}
+		rc = led_classdev_register(&pdev->dev,
+			&mtk_torch_led[i]);
+		if (rc) {
+			pr_err("Failed to register %d led dev (%s). rc = %d\n",
+				i, mtk_torch_led[i].name, rc);
+			return rc;
+		}
 	}
 
 	return 0;

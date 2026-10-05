@@ -145,6 +145,21 @@ int hbm_mode_get(void)
 }
 EXPORT_SYMBOL(hbm_mode_get);
 
+extern int pox_torch_brightness_set(int val);
+extern int pox_torch_brightness_get(void);
+
+int torch_brightness_set(int val)
+{
+	return pox_torch_brightness_set(val);
+}
+EXPORT_SYMBOL(torch_brightness_set);
+
+int torch_brightness_get(void)
+{
+	return pox_torch_brightness_get();
+}
+EXPORT_SYMBOL(torch_brightness_get);
+
 int gaming_mode_set(int mode)
 {
 	mutex_lock(&gaming_mode_lock);
@@ -550,6 +565,103 @@ static const struct file_operations hbm_mode_proc_fops = {
 	.release = single_release,
 };
 
+static int torch_brightness_proc_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", torch_brightness_get());
+	return 0;
+}
+
+static ssize_t torch_brightness_proc_write(struct file *file, const char __user *ubuf,
+					   size_t count, loff_t *ppos)
+{
+	char buf[16];
+	int val = 0;
+	size_t len;
+
+	if (count == 0)
+		return 0;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+
+	while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r' || isspace(buf[len - 1])))
+		buf[--len] = '\0';
+
+	if (strcasecmp(buf, "on") == 0 || strcasecmp(buf, "enable") == 0 ||
+	    strcasecmp(buf, "true") == 0) {
+		val = 10;
+	} else if (strcasecmp(buf, "off") == 0 || strcasecmp(buf, "disable") == 0 ||
+		   strcasecmp(buf, "false") == 0) {
+		val = 0;
+	} else {
+		if (kstrtoint(buf, 10, &val) < 0)
+			return -EINVAL;
+	}
+
+	torch_brightness_set(val);
+	return count;
+}
+
+static int torch_brightness_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, torch_brightness_proc_show, NULL);
+}
+
+static const struct file_operations torch_brightness_proc_fops = {
+	.owner   = THIS_MODULE,
+	.open    = torch_brightness_proc_open,
+	.read    = seq_read,
+	.write   = torch_brightness_proc_write,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
+static int torch_info_proc_show(struct seq_file *m, void *v)
+{
+	int val = torch_brightness_get();
+	int sel = 0;
+	int ma = 0;
+
+	if (val > 0) {
+		static const u8 s10[11] = { 0, 0, 2, 4, 6, 9, 12, 15, 18, 21, 24 };
+		if (val <= 10)
+			sel = s10[val];
+		else if (val <= 24)
+			sel = val;
+		else if (val <= 100)
+			sel = (val * 24) / 100;
+		else if (val <= 255)
+			sel = (val * 24) / 255;
+		else
+			sel = 24;
+
+		ma = 25 + (sel * 125) / 10;
+	}
+
+	seq_printf(m, "brightness: %d\n", val);
+	seq_printf(m, "hardware_selector: %d (0..24)\n", sel);
+	seq_printf(m, "current_per_channel: %d mA\n", ma);
+	seq_printf(m, "current_total_dual: %d mA\n", ma * 2);
+	seq_printf(m, "status: %s\n", val > 0 ? "on" : "off");
+	return 0;
+}
+
+static int torch_info_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, torch_info_proc_show, NULL);
+}
+
+static const struct file_operations torch_info_proc_fops = {
+	.owner   = THIS_MODULE,
+	.open    = torch_info_proc_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
 static int camera_profile_proc_show(struct seq_file *m, void *v)
 {
 	int mode = get_ios_color_mode();
@@ -763,6 +875,32 @@ static ssize_t hbm_mode_sysfs_store(struct kobject *kobj,
 
 static struct kobj_attribute hbm_mode_kobj_attr =
 	__ATTR(hbm_mode, 0664, hbm_mode_sysfs_show, hbm_mode_sysfs_store);
+
+static ssize_t torch_brightness_sysfs_show(struct kobject *kobj,
+					   struct kobj_attribute *attr,
+					   char *buf)
+{
+	return sprintf(buf, "%d\n", torch_brightness_get());
+}
+
+static ssize_t torch_brightness_sysfs_store(struct kobject *kobj,
+					    struct kobj_attribute *attr,
+					    const char *buf, size_t count)
+{
+	int val = 0;
+
+	if (kstrtoint(buf, 10, &val) < 0)
+		return -EINVAL;
+
+	torch_brightness_set(val);
+	return count;
+}
+
+static struct kobj_attribute torch_brightness_kobj_attr =
+	__ATTR(torch_brightness, 0664, torch_brightness_sysfs_show, torch_brightness_sysfs_store);
+
+static struct kobj_attribute flashlight_brightness_kobj_attr =
+	__ATTR(flashlight_brightness, 0664, torch_brightness_sysfs_show, torch_brightness_sysfs_store);
 
 static ssize_t camera_4k60_sysfs_show(struct kobject *kobj,
 				      struct kobj_attribute *attr, char *buf)
@@ -1373,6 +1511,18 @@ int init_gaming_mode(struct proc_dir_entry *parent)
 	if (!entry)
 		pr_warn("Failed to create /proc/perfmgr/hbm_mode\n");
 
+	entry = proc_create("torch_brightness", 0666, parent, &torch_brightness_proc_fops);
+	if (!entry)
+		pr_warn("Failed to create /proc/perfmgr/torch_brightness\n");
+
+	entry = proc_create("flashlight_brightness", 0666, parent, &torch_brightness_proc_fops);
+	if (!entry)
+		pr_warn("Failed to create /proc/perfmgr/flashlight_brightness\n");
+
+	entry = proc_create("torch_info", 0444, parent, &torch_info_proc_fops);
+	if (!entry)
+		pr_warn("Failed to create /proc/perfmgr/torch_info\n");
+
 	ret = sysfs_create_file(kernel_kobj, &gaming_mode_kobj_attr.attr);
 	if (ret)
 		pr_warn("Failed to create /sys/kernel/gaming_mode (ret=%d)\n", ret);
@@ -1390,6 +1540,18 @@ int init_gaming_mode(struct proc_dir_entry *parent)
 		pr_warn("Failed to create /sys/kernel/hbm_mode (ret=%d)\n", ret);
 	else
 		pr_info("/sys/kernel/hbm_mode created successfully\n");
+
+	ret = sysfs_create_file(kernel_kobj, &torch_brightness_kobj_attr.attr);
+	if (ret)
+		pr_warn("Failed to create /sys/kernel/torch_brightness (ret=%d)\n", ret);
+	else
+		pr_info("/sys/kernel/torch_brightness created successfully\n");
+
+	ret = sysfs_create_file(kernel_kobj, &flashlight_brightness_kobj_attr.attr);
+	if (ret)
+		pr_warn("Failed to create /sys/kernel/flashlight_brightness (ret=%d)\n", ret);
+	else
+		pr_info("/sys/kernel/flashlight_brightness created successfully\n");
 
 	ret = sysfs_create_file(kernel_kobj, &camera_profile_kobj_attr.attr);
 	if (ret)
